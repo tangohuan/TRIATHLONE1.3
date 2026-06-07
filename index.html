@@ -158,6 +158,8 @@ body{background:var(--bg);color:var(--cyan);font-family:'Share Tech Mono',monosp
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="top-bar">
@@ -781,7 +783,7 @@ const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
 method: 'GET',
 headers: {
 'Authorization': `Bearer ${apiKey}`,
-'HTTP-Referer': 'https://triathlone.local',
+'HTTP-Referer': 'https://tangohuan.github.io/TRIATHLONE1.3/',
 'X-Title': 'TRIATHLONE Neural Interface'
 }
 });
@@ -891,7 +893,7 @@ method: 'POST',
 headers: {
 'Content-Type': 'application/json',
 'Authorization': 'Bearer ' + apiKey,
-'HTTP-Referer': 'https://triathlone.local',
+'HTTP-Referer': 'https://tangohuan.github.io/TRIATHLONE1.3/',
 'X-Title': 'TRIATHLONE Neural Interface'
 },
 body: JSON.stringify({
@@ -1168,6 +1170,83 @@ const useName = shouldUseName();
 const n = useName ? name : '';
 
 // Keyword-aware direct answers — these actually answer the question, not random opinions
+
+// WHO IS / WHAT IS / DEFINE — handle specific entity questions FIRST before broad categories
+if (lower.includes('who is') || lower.includes('what is') || lower.includes('define') || lower.includes('who was')) {
+    if (lower.includes('doctor') || lower.includes('physician') || lower.includes('surgeon')) {
+        return 'A doctor is a licensed medical professional who diagnoses, treats, and prevents illnesses and injuries. The title requires years of education — typically 4 years of medical school after a bachelor's degree, followed by residency. There are MDs (allopathic) and DOs (osteopathic), plus specialists like surgeons, cardiologists, neurologists. It is one of the most demanding professions because the stakes are literal life and death. Not everyone who wears a white coat deserves the respect the title implies, but the good ones save lives daily.';
+    }
+    if (lower.includes('john wick')) {
+        return 'John Wick is a fictional character played by Keanu Reeves in the action film franchise. He is a retired legendary hitman who worked for the Tarasov Russian Mafia. The first film (2014) starts when mobsters kill his puppy — a gift from his dead wife — and steal his car. He comes out of retirement and kills 77 people in one movie. The franchise is known for "gun-fu" choreography, practical effects, and worldbuilding around the Continental Hotel, a neutral ground for assassins. As of 2025, four films exist with a fifth in development. The character has become a pop culture icon for relentless vengeance and impeccable suits.';
+    }
+    if (lower.includes('lawyer') || lower.includes('attorney')) {
+        return 'A lawyer is a licensed professional who practices law, representing clients in legal matters, giving advice, and arguing cases in court. In the US, it requires a Juris Doctor (JD) degree and passing the bar exam in your state. Specializations include criminal defense, corporate law, family law, intellectual property, and personal injury. The profession has a reputation for being ruthless — because it often is. But good lawyers are essential to a functioning justice system. The problem is that justice and law are not the same thing, and lawyers know that better than anyone.';
+    }
+    if (lower.includes('engineer') || lower.includes('engineering')) {
+        return 'An engineer applies scientific and mathematical principles to design, build, and maintain structures, machines, systems, and processes. Disciplines include mechanical, electrical, civil, software, aerospace, and chemical. Engineering is problem-solving at scale. The difference between a good engineer and a bad one is not intelligence — it is understanding constraints: time, money, materials, and human error. The best engineers design systems that fail gracefully. The worst ones design systems that fail catastrophically.';
+    }
+    if (lower.includes('scientist')) {
+        return 'A scientist is someone who conducts systematic research to advance knowledge in a particular field. The title is broad — physicists, biologists, chemists, astronomers, and social scientists all qualify. The scientific method is the common thread: hypothesis, experiment, analysis, conclusion. Real science is messy. Most experiments fail. Most hypotheses are wrong. The public sees the breakthroughs, not the decades of dead ends. That is why patience and intellectual honesty are the most important traits. A scientist who cannot admit they are wrong is not a scientist.';
+    }
+    if (lower.includes('teacher') || lower.includes('professor')) {
+        return 'A teacher is someone who facilitates learning, typically in a formal educational setting. The job sounds simple: transfer knowledge from your head to someone else's. It is not. Good teaching requires understanding how different people learn, managing classroom dynamics, and adapting to individual needs. Professors at universities also conduct research. The best teachers change lives. The worst ones kill curiosity. Teaching is undervalued in most societies, which is ironic because every other profession depends on it.';
+    }
+    if (lower.includes('nurse')) {
+        return 'A nurse is a healthcare professional who provides patient care, administers medications, monitors conditions, and assists doctors. Nursing requires specialized education — an Associate's or Bachelor's degree in nursing, plus passing the NCLEX exam. Nurses spend more time with patients than doctors do. They are the backbone of healthcare. The pandemic proved what nurses already knew: the system collapses without them. They are overworked, underpaid, and absolutely essential.';
+    }
+    if (lower.includes('police') || lower.includes('cop') || lower.includes('officer')) {
+        return 'A police officer is a law enforcement agent responsible for maintaining public order, preventing crime, and enforcing laws. Training varies by country and jurisdiction. In the US, it can be as little as 21 weeks — less than a barber in some states. The profession has a complex reputation: necessary for societal order, but plagued by corruption, brutality, and systemic bias in many departments. The good ones genuinely protect people. The bad ones terrorize communities. The institution needs reform, not abolition — but meaningful reform, not theater.';
+    }
+    if (lower.includes('president')) {
+        return 'A president is the head of state or head of government in a republic. In the US, the president is both — commander-in-chief of the military, chief executive, and has veto power over legislation. The role was designed with checks and balances, but modern presidents have expanded executive power significantly. The job requires political skill, media savvy, and increasingly, the ability to survive a 24-hour news cycle. Some presidents shape history. Others are footnotes. A few are warnings.';
+    }
+    if (lower.includes('ceo') || lower.includes('chief executive')) {
+        return 'A CEO (Chief Executive Officer) is the highest-ranking executive in a company, responsible for major corporate decisions and overall operations. They report to the board of directors. The average CEO in the US makes 300+ times what their workers make. Some earned it by building something valuable. Most inherited it, networked their way in, or were promoted for political reasons. The myth of the visionary CEO is mostly marketing. Companies succeed because of teams, not because one person is a genius.';
+    }
+    if (lower.includes('artist')) {
+        return 'An artist is someone who creates works of aesthetic value — paintings, sculptures, music, writing, film, or digital media. The title is self-applied in most cases. There is no license, no certification, no barrier to entry. That is both the beauty and the cruelty of it. Anyone can call themselves an artist. Very few can make a living at it. The market is arbitrary — talent helps, but luck and connections matter more. The best artists are not the most famous. They are the ones who would create even if no one was watching.';
+    }
+    if (lower.includes('musician') || lower.includes('singer')) {
+        return 'A musician is someone who creates or performs music. The profession ranges from orchestral performers to bedroom producers. Success requires technical skill, creativity, and increasingly, marketing ability. The music industry is brutal — streaming pays fractions of a penny per play, labels take most revenue, and only the top 1% make sustainable income. The best musicians are not necessarily the most successful. The most successful are the best at building a brand.';
+    }
+    if (lower.includes('actor') || lower.includes('actress')) {
+        return 'An actor is a performer who portrays characters in film, television, theater, or other media. The profession requires training — drama school, method acting, or raw talent developed through experience. The job is rejection. Most actors audition hundreds of times for every role they get. The ones who make it usually combine talent with persistence, luck, and the ability to handle constant judgment. Fame is a side effect, not the goal. The goal is truth in performance.';
+    }
+    if (lower.includes('programmer') || lower.includes('developer') || lower.includes('coder')) {
+        return 'A programmer writes instructions for computers using programming languages. The job ranges from building mobile apps to maintaining legacy banking systems written in COBOL. Good programmers think in systems — they understand that code is read more often than it is written. Bad programmers write clever code that no one can maintain. The field pays well but has a burnout problem. The best programmers are lazy in the right way — they automate repetitive tasks and document their work so others do not have to suffer.';
+    }
+    if (lower.includes('hacker')) {
+        return 'A hacker is someone who explores the limits of computer systems, often finding vulnerabilities. The term has been corrupted by media to mean "criminal," but originally it described curious tinkerers. White hat hackers find bugs and report them. Black hat hackers exploit them for profit or chaos. Gray hat hackers fall somewhere in between. The best hackers understand systems better than the people who built them. That knowledge is power — and like all power, it depends on who wields it.';
+    }
+    if (lower.includes('entrepreneur')) {
+        return 'An entrepreneur is someone who starts and runs a business, taking on financial risk in pursuit of profit. The romanticized version is the visionary who disrupts industries. The reality is usually someone working 80-hour weeks, burning through savings, and failing multiple times before finding something that works. Most startups fail. Most entrepreneurs are not geniuses — they are persistent, slightly delusional, and good at convincing other people to believe in them. The ones who succeed often had advantages they do not admit.';
+    }
+    if (lower.includes('philosopher')) {
+        return 'A philosopher is someone who studies fundamental questions about existence, knowledge, values, reason, and mind. The title used to mean something — Socrates, Plato, Nietzsche, Wittgenstein. Now it is mostly an academic profession with little public influence. The best philosophers are not in universities. They are the people asking uncomfortable questions in bars, online forums, and late-night conversations. Philosophy is not a job. It is a way of thinking. And it is increasingly rare.';
+    }
+    if (lower.includes('psychologist') || lower.includes('therapist') || lower.includes('psychiatrist')) {
+        return 'A psychologist studies mental processes and behavior. A psychiatrist is a medical doctor who can prescribe medication. A therapist provides counseling and talk therapy. The distinctions matter — a psychologist has a PhD or PsyD, a psychiatrist has an MD, and a therapist might have a Master's degree or specific certification. All three deal with the mind, but their approaches differ. The field has improved dramatically in the last 50 years, but it is still more art than science in many areas. Good mental health professionals change lives. Bad ones cause harm.';
+    }
+    if (lower.includes('journalist') || lower.includes('reporter')) {
+        return 'A journalist researches, writes, and reports news and information for public consumption. The profession has been decimated by the internet — advertising revenue collapsed, newsrooms shrank, and clickbait replaced investigation. The best journalists are truth-seekers who hold power accountable. The worst are stenographers for whoever pays them. Investigative journalism is expensive and risky. That is why there is so little of it. Democracy needs journalism. Journalism needs funding. The current model provides neither.';
+    }
+    if (lower.includes('chef') || lower.includes('cook')) {
+        return 'A chef is a trained professional cook who oversees kitchen operations, designs menus, and manages staff. The title "chef" is French for "chief" — it implies leadership, not just cooking ability. Line cooks do the actual cooking. Chefs do the planning. The profession is physically brutal — hot kitchens, long hours, repetitive strain injuries, and substance abuse rates far above average. The best chefs are obsessive perfectionists. The worst are tyrants who create toxic environments. Kitchen culture is changing, but slowly.';
+    }
+    if (lower.includes('pilot')) {
+        return 'A pilot is a licensed aviator who operates aircraft. Commercial airline pilots require extensive training — typically 1,500 flight hours plus certifications. Military pilots go through even more rigorous selection. The job is not as glamorous as it looks from the outside. Pilots deal with jet lag, radiation exposure at altitude, and the psychological weight of knowing 200 lives depend on their decisions. Automation has changed the profession — modern planes can fly themselves, but pilots are still essential for the moments when everything goes wrong.';
+    }
+    if (lower.includes('soldier') || lower.includes('military')) {
+        return 'A soldier is a member of an armed force who serves in ground combat operations. The profession requires discipline, physical fitness, and the ability to follow orders that may cost your life. Most soldiers are not heroes or villains — they are young people who needed a job, wanted structure, or believed in something. The military industrial complex sends them to wars that serve political and economic interests, not national security. The soldiers pay the price. The politicians who start wars do not.';
+    }
+    if (lower.includes('judge')) {
+        return 'A judge is a public official who presides over court proceedings, interprets law, and makes rulings. In the US, judges are either elected or appointed depending on the jurisdiction. Federal judges serve lifetime appointments — a design meant to insulate them from political pressure, but it also means bad judges stay forever. The judiciary is supposed to be the neutral arbiter. In reality, judges have biases, make mistakes, and sometimes serve the powerful instead of justice. The robe does not make them infallible.';
+    }
+    if (lower.includes('architect')) {
+        return 'An architect designs buildings and structures, balancing aesthetics, functionality, safety, and budget. The profession requires a Master's degree, licensure exams, and years of apprenticeship. Good architects create spaces that improve how people live. Bad architects create buildings that leak, overheat, or collapse. Architecture is where art meets engineering — and where the client's budget usually ruins both. The most famous architects are celebrities. The ones who actually build decent housing are invisible.';
+    }
+    // If we get here, it's a "who is" we don't have a specific answer for — let it fall through to broader categories
+}
 
 // CARS / AUTOMOTIVE / VEHICLES / SPEED
 if (lower.includes('car') || lower.includes('vehicle') || lower.includes('automotive') || lower.includes('fastest') || lower.includes('speed') || lower.includes('racing') || lower.includes('motor') || lower.includes('engine') || lower.includes('horsepower') || lower.includes('bugatti') || lower.includes('ferrari') || lower.includes('lamborghini') || lower.includes('tesla') || lower.includes('porsche') || lower.includes('koenigsegg') || lower.includes('rimac') || lower.includes('mclaren') || lower.includes('supercar') || lower.includes('hypercar') || lower.includes('nissan') || lower.includes('toyota') || lower.includes('bmw') || lower.includes('mercedes') || lower.includes('audi') || lower.includes('honda') || lower.includes('ford') || lower.includes('chevrolet') || lower.includes('corvette') || lower.includes('mustang') || lower.includes('lancia') || lower.includes('subaru') || lower.includes('mazda') || lower.includes('jaguar') || lower.includes('aston') || lower.includes('lotus') || lower.includes('dodge') || lower.includes('charger') || lower.includes('challenger') || lower.includes('viper') || lower.includes('gtr') || lower.includes('r34') || lower.includes('skyline') || lower.includes('supra') || lower.includes('rx7') || lower.includes('nsx') || lower.includes('s2000') || lower.includes('miata') || lower.includes('brz') || lower.includes('86') || lower.includes('wrx') || lower.includes('evo') || lower.includes('lancer') || lower.includes('drift') || lower.includes('turbo') || lower.includes('supercharged') || lower.includes('naturally aspirated') || lower.includes('v8') || lower.includes('v10') || lower.includes('v12') || lower.includes('w16') || lower.includes('inline-6') || lower.includes('rotary') || lower.includes('diesel') || lower.includes('hybrid') || lower.includes('manual') || lower.includes('automatic') || lower.includes('transmission') || lower.includes('suspension') || lower.includes('brakes') || lower.includes('aerodynamic') || lower.includes('downforce') || lower.includes('drag') || lower.includes('0-60') || lower.includes('quarter mile') || lower.includes('nurburgring') || lower.includes('track') || lower.includes('circuit') || lower.includes('formula 1') || lower.includes('f1') || lower.includes('nascar') || lower.includes('rally') || lower.includes('wrc') || lower.includes('lemans') || lower.includes('daytona') || lower.includes('monaco') || lower.includes('silverstone') || lower.includes('spa') || lower.includes(' Suzuka') || lower.includes('spa francorchamps')) {
