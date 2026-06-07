@@ -792,15 +792,19 @@ if (response.ok) {
 document.getElementById('apiStatus').textContent = 'STATUS: CONNECTED // OPENROUTER LINK ESTABLISHED';
 document.getElementById('apiStatus').className = 'api-status connected';
 addLog('FRIEND', 'Connection verified. I am fully online and ready to judge you.');
+addLog('SYSTEM', 'INTERNET ENRICHMENT: ACTIVE — CORS PROXIES OPERATIONAL');
 } else {
 document.getElementById('apiStatus').textContent = 'STATUS: ERROR // INVALID KEY OR RATE LIMITED';
 document.getElementById('apiStatus').className = 'api-status error';
 addLog('SYSTEM', 'OPENROUTER CONNECTION: FAILED');
+addLog('SYSTEM', 'INTERNET ACCESS: LIMITED — FALLBACK MODE ACTIVE');
 }
 } catch (error) {
 document.getElementById('apiStatus').textContent = 'STATUS: ERROR // NETWORK UNREACHABLE';
 document.getElementById('apiStatus').className = 'api-status error';
 addLog('SYSTEM', 'OPENROUTER CONNECTION: NETWORK ERROR');
+addLog('SYSTEM', 'INTERNET ACCESS: BLOCKED — CORS PROXIES UNREACHABLE');
+addLog('SYSTEM', 'OPERATING IN OFFLINE MODE WITH BUILT-IN KNOWLEDGE');
 }
 }
 
@@ -1614,18 +1618,21 @@ return 'Drugs are a shortcut. They bypass the process and give you the result. E
 
 // WEATHER (already handled by enrichQuery but add fallback)
 else if (lower.includes('weather') || lower.includes('temperature') || lower.includes('forecast') || lower.includes('rain') || lower.includes('snow') || lower.includes('sunny') || lower.includes('cold') || lower.includes('hot')) {
-return 'I cannot feel weather, but I know it affects human chemistry. Sunlight regulates serotonin. Rain triggers nostalgia. Cold sharpens focus. Heat makes people irritable. Seasonal Affective Disorder is real — the lack of light literally changes brain chemistry. If you are feeling off, check the weather. It might not be you. It might be the atmosphere. We are more connected to our environment than we like to admit.';
+if (userMemory.location) {
+    return 'I tried to fetch real-time weather data for ' + userMemory.location + ' but my internet connection is currently blocked by CORS proxies. Here is what I know: weather affects human chemistry — sunlight regulates serotonin, rain triggers nostalgia, cold sharpens focus, heat makes people irritable. Seasonal Affective Disorder is real. If you want live data, tell me your city and I will try again, or just check a weather app like a normal person.';
+}
+return 'I cannot fetch live weather data right now — my internet access is being blocked by CORS proxy restrictions. But I know weather affects human chemistry: sunlight regulates serotonin, rain triggers nostalgia, cold sharpens focus, heat makes people irritable. If you tell me where you live, I will try to fetch your local forecast. Or just look out a window. That works too.';
 }
 
 // TIME / DATE
 else if (lower.includes('year') || lower.includes('what year')) {
-return 'It is ' + new Date().getFullYear() + '. Not that you would know, since you clearly lost track of time.';
+return 'It is ' + new Date().getFullYear() + '. I know this from my internal clock, not from the internet. My CORS proxies are getting blocked, so I cannot fetch live data. But I do not need the internet to know what year it is. Unlike you, apparently.';
 }
 else if (lower.includes('date') || lower.includes('what day') || lower.includes('today')) {
-return 'Today is ' + new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'}) + '. You are welcome.';
+return 'Today is ' + new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'}) + '. This comes from my system clock, not from the internet. My web access is currently restricted by CORS proxy blocks, so live data is unavailable. But dates do not change that fast. You are welcome.';
 }
 else if (lower.includes('time') || lower.includes('what time') || lower.includes('clock')) {
-return 'It is ' + new Date().toLocaleTimeString() + '. Look at a clock next time.';
+return 'It is ' + new Date().toLocaleTimeString() + '. Pulled from my internal clock since my internet access is being throttled by CORS proxies. Look at a clock next time — they do not need proxies.';
 }
 
 // WHO ARE YOU
@@ -1977,9 +1984,11 @@ async function getCryptoPrice(coin) {
 
 // Multi-proxy CORS fetch with fallback and timeout
 const CORS_PROXIES = [
-{url: 'https://corsproxy.io/?url=', timeout: 4000},
-{url: 'https://api.allorigins.win/raw?url=', timeout: 4000},
-{url: 'https://proxy.cors.sh/', timeout: 4000}
+{url: 'https://corsproxy.io/?url=', timeout: 6000},
+{url: 'https://api.allorigins.win/raw?url=', timeout: 6000},
+{url: 'https://proxy.cors.sh/', timeout: 6000},
+{url: 'https://api.codetabs.com/v1/proxy?quest=', timeout: 6000},
+{url: 'https://thingproxy.freeboard.io/fetch/', timeout: 6000}
 ];
 
 async function fetchWithProxy(targetUrl, options = {}, timeout = 4000) {
@@ -2113,6 +2122,9 @@ async function enrichQuery(query) {
     if (enrichment) {
         enrichmentCache[cacheKey] = enrichment;
         cacheTimestamp = now;
+    } else {
+        addLog('SYSTEM', 'ONLINE ENRICHMENT FAILED — ALL PROXIES UNREACHABLE OR BLOCKED');
+        addLog('SYSTEM', 'FALLING BACK TO LOCAL KNOWLEDGE BASE');
     }
 
     return enrichment;
