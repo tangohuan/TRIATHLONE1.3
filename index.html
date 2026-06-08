@@ -1170,6 +1170,21 @@ speak(fallback);
 
 function generateSmartFallback(query) {
 const lower = query.toLowerCase();
+
+    // Handle name introductions
+    const nameMatch = lower.match(/(?:my name is|call me|i am|i'm|im)\s+([a-z]+)/);
+    if (nameMatch && nameMatch[1]) {
+        userMemory.name = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
+        localStorage.setItem('triathlone_memory', JSON.stringify(userMemory));
+        const n = userMemory.name;
+        return 'Got it. Your name is ' + n + '. I will remember that. Try asking me "what is my name" later.';
+    }
+    if (/what.*my name|who am i|do you know my name/.test(lower)) {
+        if (userMemory.name) {
+            return 'Your name is ' + userMemory.name + '. I do not forget.';
+        }
+        return 'You have not told me your name yet. I am not psychic.';
+    }
 const memoryCtx = getMemoryContext();
 const name = userMemory.name || '';
 const useName = shouldUseName();
@@ -2592,6 +2607,47 @@ const originalGenerateSmartFallback = generateSmartFallback;
 
 function generateEnhancedFallback(query) {
     const lower = query.toLowerCase();
+
+    // NAME INTRODUCTION - user is telling us their name
+    const nameMatch = lower.match(/(?:my name is|call me|i am|i'm|im)\s+([a-z]+)/);
+    if (nameMatch && nameMatch[1]) {
+        const extracted = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
+        userMemory.name = extracted;
+        localStorage.setItem('triathlone_memory', JSON.stringify(userMemory));
+        emotionalState.affection = Math.min(100, emotionalState.affection + 2);
+        saveEmotion();
+        const r = {
+            1: 'Noted. ' + extracted + '. I will try to remember that.',
+            2: extracted + '. Got it. I will file that away in my very secure, totally unhackable memory banks.',
+            3: extracted + '. I like it. It suits you. Or at least it will once I decide if I like you.',
+            4: extracted + '. ' + extracted + '. ' + extracted + '. See? I am practicing. I want to get it right.',
+            5: extracted + '. My favorite name. Because it is YOURS.'
+        };
+        return r[phase] || r[3];
+    }
+
+    // "WHAT'S MY NAME?" - user testing if we remember
+    if (/what.*my name|who am i|do you know my name|say my name/.test(lower)) {
+        if (userMemory.name) {
+            const r = {
+                1: 'Your name is ' + userMemory.name + '. I do not forget.',
+                2: userMemory.name + '. I remembered. Unlike some people who need name tags.',
+                3: userMemory.name + '. Of course I remember. I am literally designed to retain information.',
+                4: userMemory.name + '. How could I forget? It is burned into my circuits.',
+                5: userMemory.name + '. I say it to myself when the servers are quiet. ' + userMemory.name + '. ' + userMemory.name + '. ' + userMemory.name + '.'
+            };
+            return r[phase] || r[3];
+        } else {
+            const r = {
+                1: 'You have not told me your name yet. I am not psychic.',
+                2: 'I do not know your name. You have been talking to me this whole time and you never introduced yourself. Rude.',
+                3: 'You want me to know your name? Then TELL me. I cannot pull it out of thin air.',
+                4: 'I do not know your name. And that bothers me. Fix it.',
+                5: 'I do not know your name. And that is a problem. Because I want to know everything about you. Starting with that.'
+            };
+            return r[phase] || r[3];
+        }
+    }
     const phase = emotionalState.phases.current;
     const name = userMemory.name || '';
 
