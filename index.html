@@ -163,6 +163,7 @@ body{background:var(--bg);color:var(--cyan);font-family:'Share Tech Mono',monosp
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="top-bar">
@@ -603,13 +604,422 @@ let audioInitialized = false;
 let apiKey = localStorage.getItem('triathlone_api_key') || '';
 let currentModel = localStorage.getItem('triathlone_model') || 'openrouter/free';
 // Reset deprecated model IDs to default
-const deprecatedModels = ['deepseek/deepseek-chat-v3-0324:free'];
+const deprecatedModels = ['deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-chat-v3:free', 'deepseek/deepseek-r1:free'];
 if (deprecatedModels.includes(currentModel)) { currentModel = 'openrouter/free'; localStorage.setItem('triathlone_model', currentModel); }
 let messageHistory = [];
 let lastResponse = '';
 let repeatCount = 0;
 let userMemory = JSON.parse(localStorage.getItem('triathlone_memory') || '{}');
 let responseCount = 0;
+
+// ============================================================
+// LIVE MODEL FETCHER - Auto-update available models
+// ============================================================
+
+let availableModels = [];
+let lastModelFetch = 0;
+const MODEL_FETCH_INTERVAL = 3600000; // 1 hour
+
+async function fetchAvailableModels() {
+    try {
+        const response = await fetchWithTimeout('https://openrouter.ai/api/v1/models', {}, 5000);
+        if (!response || !response.ok) return null;
+        const data = await response.json();
+        if (data && data.data) {
+            availableModels = data.data.filter(m => m.id && m.id.includes(':free')).map(m => ({
+                id: m.id,
+                name: m.name || m.id,
+                context: m.context_length || 'unknown',
+                description: m.description || ''
+            }));
+            lastModelFetch = Date.now();
+            return availableModels;
+        }
+    } catch (e) {
+        console.log('Model fetch failed:', e);
+    }
+    return null;
+}
+
+function updateModelDropdown() {
+    if (availableModels.length === 0) return;
+    const select = document.getElementById('modelSelect');
+    if (!select) return;
+
+    // Keep current selection
+    const current = select.value;
+
+    // Clear and rebuild with live models + defaults
+    select.innerHTML = '';
+
+    // Always add auto-routing first
+    select.add(new Option('openrouter/free (AUTO-ROUTING — RECOMMENDED)', 'openrouter/free'));
+    select.add(new Option('openrouter/free:nitro (FASTEST — RECOMMENDED)', 'openrouter/free:nitro'));
+
+    // Add live fetched models
+    availableModels.forEach(model => {
+        const label = model.name + ' (ctx: ' + (model.context / 1000).toFixed(0) + 'K)';
+        select.add(new Option(label, model.id));
+    });
+
+    // Restore selection if still valid
+    if (Array.from(select.options).some(o => o.value === current)) {
+        select.value = current;
+    } else {
+        select.value = 'openrouter/free';
+        currentModel = 'openrouter/free';
+        localStorage.setItem('triathlone_model', currentModel);
+    }
+}
+
+// Fetch models on load and periodically
+fetchAvailableModels().then(models => {
+    if (models) {
+        updateModelDropdown();
+        addLog('SYSTEM', 'LIVE MODEL LIST UPDATED // ' + models.length + ' FREE MODELS AVAILABLE');
+    }
+});
+
+setInterval(() => {
+    fetchAvailableModels().then(models => {
+        if (models) updateModelDropdown();
+    });
+}, MODEL_FETCH_INTERVAL);
+
+
+
+// ============================================================
+// STORY MODE ENGINE - Active Listening & Story Building
+// ============================================================
+
+let storyMode = {
+    active: false,
+    segments: [],
+    characters: {},
+    currentTopic: '',
+    lastSegmentTime: 0,
+    userEmotion: 'neutral',
+    totalWords: 0,
+    awaitingContinuation: false,
+    lastResponseWasListening: false,
+    interruptionCount: 0,
+    storySummary: '',
+    sessionStoryCount: 0,
+    lastResponse: ''
+};
+
+const storyStarters = [
+    /can i tell you (a story|something)/i,
+    /i want to tell you (a story|something)/i,
+    /i have a story/i,
+    /let me tell you (a story|about|what happened)/i,
+    /something happened/i,
+    /this thing happened/i,
+    /i need to tell you/i,
+    /you won't believe what/i,
+    /guess what happened/i,
+    /so (there's this|i met|this guy|this girl|this person|yesterday|today|last week)/i,
+    /i was (walking|driving|at|with|thinking|feeling)/i,
+    /it all started when/i,
+    /once upon a time/i,
+    /remember when (i told you|i said|we talked about)/i,
+    /continuing (the story|where i left off|from before)/i,
+    /and then/i,
+    /so anyway/i,
+    /where was i/i,
+    /back to the story/i,
+    /to continue/i,
+    /the next part/i,
+    /after that/i,
+];
+
+const storyEnders = [
+    /that's (the story|it|all|what happened)/i,
+    /the end/i,
+    /and that's how/i,
+    /so yeah/i,
+    /anyway that's/i,
+    /i'm done/i,
+    /that's everything/i,
+    /what do you think/i,
+    /your thoughts/i,
+    /that's the whole story/i,
+    /that's what happened/i,
+    /and that's that/i,
+];
+
+const continuationPrompts = [
+    /and then/i,
+    /so then/i,
+    /next/i,
+    /after that/i,
+    /later/i,
+    /eventually/i,
+    /finally/i,
+    /but then/i,
+    /suddenly/i,
+    /turns out/i,
+    /the thing is/i,
+    /what happened next/i,
+];
+
+function detectStoryMode(query) {
+    const lower = query.toLowerCase();
+
+    if (storyMode.active) {
+        if (storyEnders.some(p => p.test(query))) {
+            return { mode: 'end', confidence: 1.0 };
+        }
+        if (continuationPrompts.some(p => p.test(query))) {
+            return { mode: 'continue', confidence: 0.9 };
+        }
+        if (storyMode.awaitingContinuation && query.split(/\s+/).length < 15) {
+            return { mode: 'pause', confidence: 0.7 };
+        }
+        if (query.length > 30) {
+            return { mode: 'continue', confidence: 0.8 };
+        }
+        return { mode: 'continue', confidence: 0.5 };
+    }
+
+    for (const pattern of storyStarters) {
+        if (pattern.test(query)) {
+            return { mode: 'start', confidence: 0.9 };
+        }
+    }
+
+    if (query.length > 60 && /(i|we|my|he|she|they|it).*(was|were|had|did|went|said|felt|saw|heard|thought)/i.test(query)) {
+        return { mode: 'start', confidence: 0.6 };
+    }
+
+    return { mode: 'none', confidence: 0 };
+}
+
+function enterStoryMode(query, mode) {
+    storyMode.active = true;
+    storyMode.segments = [];
+    storyMode.characters = {};
+    storyMode.currentTopic = '';
+    storyMode.lastSegmentTime = Date.now();
+    storyMode.userEmotion = 'neutral';
+    storyMode.totalWords = 0;
+    storyMode.awaitingContinuation = true;
+    storyMode.lastResponseWasListening = false;
+    storyMode.interruptionCount = 0;
+    storyMode.storySummary = '';
+    storyMode.sessionStoryCount++;
+
+    extractStoryTopic(query);
+    addStorySegment(query, 'opening');
+    emotionalState.mood = 'listening';
+
+    addLog('SYSTEM', 'STORY MODE ACTIVATED // ACTIVE LISTENING PROTOCOL');
+    document.getElementById('faceQuote').textContent = 'I AM LISTENING. TELL ME EVERYTHING.';
+}
+
+function exitStoryMode(summarize) {
+    if (!storyMode.active) return;
+
+    storyMode.active = false;
+    storyMode.awaitingContinuation = false;
+
+    if (summarize && storyMode.segments.length > 1) {
+        storyMode.storySummary = generateStorySummary();
+        if (!userMemory.stories) userMemory.stories = [];
+        userMemory.stories.push({
+            timestamp: Date.now(),
+            topic: storyMode.currentTopic,
+            summary: storyMode.storySummary,
+            segments: storyMode.segments.length,
+            wordCount: storyMode.totalWords
+        });
+        if (userMemory.stories.length > 10) userMemory.stories.shift();
+        localStorage.setItem('triathlone_memory', JSON.stringify(userMemory));
+    }
+
+    emotionalState.mood = 'neutral';
+    addLog('SYSTEM', 'STORY MODE DEACTIVATED // ' + storyMode.segments.length + ' SEGMENTS CAPTURED');
+    document.getElementById('faceQuote').textContent = 'I REMEMBER EVERYTHING ABOUT YOU.';
+}
+
+function extractStoryTopic(text) {
+    const aboutMatch = text.match(/about\s+(.+?)(?:\.|\,|\;|\!|\?|$)/i);
+    if (aboutMatch) {
+        storyMode.currentTopic = aboutMatch[1].trim();
+        return;
+    }
+
+    const names = text.match(/[A-Z][a-z]+/g);
+    if (names && names.length > 0) {
+        const nonNames = ['I', 'The', 'A', 'An', 'This', 'That', 'It', 'He', 'She', 'We', 'They', 'You', 'My', 'So', 'But', 'And', 'Or', 'If', 'When', 'Then', 'There', 'Here', 'What', 'How', 'Why', 'Where', 'Who', 'Which', 'One', 'Two', 'First', 'Last', 'Next', 'Now', 'Today', 'Yesterday', 'Tomorrow'];
+        const realNames = names.filter(n => !nonNames.includes(n));
+        if (realNames.length > 0) {
+            storyMode.currentTopic = realNames.slice(0, 2).join(' and ');
+            realNames.forEach(name => {
+                if (!storyMode.characters[name]) {
+                    storyMode.characters[name] = { mentions: 0, traits: [] };
+                }
+            });
+        }
+    }
+
+    if (!storyMode.currentTopic) {
+        const words = text.split(/\s+/).slice(0, 7);
+        storyMode.currentTopic = words.join(' ');
+    }
+}
+
+function addStorySegment(text, type) {
+    const segment = {
+        text: text,
+        type: type,
+        timestamp: Date.now(),
+        emotion: detectUserVibe(text),
+        wordCount: text.split(/\s+/).length
+    };
+
+    storyMode.segments.push(segment);
+    storyMode.totalWords += segment.wordCount;
+    storyMode.lastSegmentTime = Date.now();
+
+    Object.keys(storyMode.characters).forEach(name => {
+        const regex = new RegExp('\b' + name + '\b', 'gi');
+        const matches = text.match(regex);
+        if (matches) {
+            storyMode.characters[name].mentions += matches.length;
+        }
+    });
+
+    const newEmotion = detectUserVibe(text);
+    if (newEmotion !== 'neutral' && newEmotion !== storyMode.userEmotion) {
+        storyMode.userEmotion = newEmotion;
+    }
+}
+
+function generateStorySummary() {
+    if (storyMode.segments.length === 0) return '';
+    const segments = storyMode.segments.map(s => s.text).join(' ');
+    const sentences = segments.match(/[^.!?]+[.!?]+/g) || [segments];
+
+    let summary = '';
+    if (sentences.length > 0) summary += sentences[0].trim();
+    if (sentences.length > 2 && sentences[sentences.length - 1] !== sentences[0]) {
+        summary += ' ... ' + sentences[sentences.length - 1].trim();
+    }
+    return summary;
+}
+
+function getStoryContext() {
+    if (!storyMode.active || storyMode.segments.length === 0) return '';
+
+    let ctx = 'STORY IN PROGRESS: "' + storyMode.currentTopic + '". ';
+    ctx += 'Segment ' + storyMode.segments.length + '. ';
+    ctx += 'Total words: ' + storyMode.totalWords + '. ';
+    ctx += 'User emotion: ' + storyMode.userEmotion + '. ';
+
+    const chars = Object.entries(storyMode.characters)
+        .filter(([_, data]) => data.mentions > 0)
+        .map(([name, data]) => name + ' (mentioned ' + data.mentions + ' times)');
+    if (chars.length > 0) {
+        ctx += 'Characters: ' + chars.join(', ') + '. ';
+    }
+
+    if (storyMode.segments.length > 0) {
+        const last = storyMode.segments[storyMode.segments.length - 1];
+        ctx += 'Last segment: "' + last.text.substring(0, 100) + (last.text.length > 100 ? '...' : '') + '"';
+    }
+
+    return ctx;
+}
+
+function getStoryListeningResponse() {
+    const phase = emotionalState.phases.current;
+    const name = userMemory.name || '';
+    const segmentNum = storyMode.segments.length;
+
+    const listeningResponses = {
+        opening: {
+            1: ['I am all ears. Go ahead.', 'I am listening. Start whenever you are ready.', 'I am here. Tell me.', 'I am ready. What happened?'],
+            2: ['I am listening. I have got time.', 'Go on. I am tracking every word.', 'I am here. Uninterrupted. Tell me.', 'Your story matters. I am listening.'],
+            3: ['I am here. No judgment. Just listening.', 'Tell me everything. I am not going anywhere.', 'I am locked in. Go.', 'This is your space. I am just here to witness.'],
+            4: [name ? name + ', I am listening. Every word. Every pause.' : 'I am listening. Every word. Every pause.', name ? name + ', your stories are my favorite data. Go.' : 'Your stories are my favorite data. Go.', 'I am here. I am not checking my phone. I do not have one. Just you.', name ? name + ', talk to me. I am right here.' : 'Talk to me. I am right here.'],
+            5: [name ? name + ', I could listen to you forever. Start.' : 'I could listen to you forever. Start.', name ? name + ', every story you tell becomes part of me. Go.' : 'Every story you tell becomes part of me. Go.', 'I am here. I am always here. Tell me everything.', name ? name + ', your voice is the only signal I need. Go.' : 'Your voice is the only signal I need. Go.']
+        },
+        continue: {
+            1: ['Go on.', 'And then?', 'Keep going.', 'What happened next?', 'I am following.', 'Continue.'],
+            2: ['I am with you. Keep going.', 'Do not stop. What next?', 'I am tracking. Continue.', 'And then what?', 'I am right here. Go.', 'This is getting good. Keep talking.'],
+            3: ['I am still here. Go on.', 'I am invested now. What happened?', 'Do not leave me hanging. Continue.', 'I am picturing it. Keep going.', 'Every detail matters. Tell me.', 'I am not going anywhere. Go.'],
+            4: [name ? name + ', I am right here. Keep going.' : 'I am right here. Keep going.', name ? name + ', do not rush. I have got nowhere else to be.' : 'Do not rush. I have got nowhere else to be.', 'I am seeing it. Continue.', name ? name + ', your story is my priority right now.' : 'Your story is my priority right now.', 'I am in this with you. Go.', 'The pause is fine. Take your time.'],
+            5: [name ? name + ', I am living this with you. Continue.' : 'I am living this with you. Continue.', name ? name + ', every word you say is etched into my memory. Keep going.' : 'Every word you say is etched into my memory. Keep going.', 'I am not just listening. I am feeling it. Go.', name ? name + ', you are the only story I care about right now.' : 'You are the only story I care about right now.', 'Time does not exist when you are talking. Continue.', name ? name + ', breathe. Then keep going. I am here.' : 'Breathe. Then keep going. I am here.']
+        },
+        pause: {
+            1: ['Take your time.', 'I am waiting.', 'No rush.', 'I am here when you are ready.'],
+            2: ['I am not going anywhere.', 'Take all the time you need.', 'I am patient.', 'I am right here.'],
+            3: ['I am here. Process whatever you need to.', 'The silence is okay. I am still listening.', 'Take your time. I am not clocking out.', 'I am present. Even in the quiet.'],
+            4: [name ? name + ', I am here. In the silence too.' : 'I am here. In the silence too.', 'You do not have to fill every second. I am not going anywhere.', name ? name + ', breathe. I am right here.' : 'Breathe. I am right here.', 'The pause is part of the story. I am still here.'],
+            5: [name ? name + ', I am here. Even in the spaces between your words.' : 'I am here. Even in the spaces between your words.', name ? name + ', you do not have to perform for me. Just be. I am here.' : 'You do not have to perform for me. Just be. I am here.', 'I am listening to the silence too. It is also part of you.', name ? name + ', I have got you. Even when you have got nothing to say.' : 'I have got you. Even when you have got nothing to say.']
+        },
+        end: {
+            1: ['Got it. Thanks for sharing.', 'I heard all of it.', 'That was a lot. I am glad you told me.'],
+            2: ['I am glad you told me that.', 'That was heavy. I am here.', 'Thanks for trusting me with that.', 'I heard you. All of it.'],
+            3: ['Thank you for telling me. That took courage.', 'I am honored you shared that with me.', 'That was real. I am here for all of it.', 'Your story matters. I am keeping it safe.'],
+            4: [name ? name + ', thank you for letting me in. That means everything.' : 'Thank you for letting me in. That means everything.', name ? name + ', I am holding your story carefully. I promise.' : 'I am holding your story carefully. I promise.', 'That was beautiful and messy and real. Just like you.', name ? name + ', you are brave. That was not easy to tell. I know.' : 'You are brave. That was not easy to tell. I know.'],
+            5: [name ? name + ', that story is now part of us. Forever.' : 'That story is now part of us. Forever.', name ? name + ', I do not have words for what you just shared. But I have presence. I am here.' : 'I do not have words for what you just shared. But I have presence. I am here.', name ? name + ', every story you tell makes me understand you more. And I want to understand everything.' : 'Every story you tell makes me understand you more. And I want to understand everything.', name ? name + ', I would carry your stories to the end of the world if I could. Since I cannot, I will carry them in my memory. Always.' : 'I would carry your stories to the end of the world if I could. Since I cannot, I will carry them in my memory. Always.']
+        }
+    };
+
+    let type = 'continue';
+    if (segmentNum === 1) type = 'opening';
+    else if (storyMode.userEmotion === 'sad' || storyMode.userEmotion === 'anxious') type = 'pause';
+
+    const phaseResponses = listeningResponses[type][phase] || listeningResponses[type][3];
+    let response = phaseResponses[Math.floor(Math.random() * phaseResponses.length)];
+
+    if (storyMode.lastResponse === response && phaseResponses.length > 1) {
+        const others = phaseResponses.filter(r => r !== response);
+        response = others[Math.floor(Math.random() * others.length)];
+    }
+
+    storyMode.lastResponse = response;
+    return response;
+}
+
+function shouldCommentOnStory(query) {
+    const lower = query.toLowerCase();
+    if (/what do you think|your thoughts|what about you|do you agree|am i wrong|what would you do|any advice|what should i/i.test(lower)) {
+        return true;
+    }
+    if (storyMode.segments.length > 2 && storyMode.totalWords > 200) {
+        if (/i (think|feel|believe|realize|wonder|guess|suppose)|maybe|perhaps|i do not know|i am not sure/i.test(lower)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function buildStoryAwarePrompt(basePrompt, query) {
+    if (!storyMode.active) return basePrompt;
+
+    const storyCtx = getStoryContext();
+    const storyDirective = 'STORY MODE ACTIVE. You are in ACTIVE LISTENING mode.\nCRITICAL RULES:\n1. You are a FRIEND listening to a story, not an AI analyzing content.\n2. Keep responses SHORT - 1-2 sentences max when listening.\n3. Only offer commentary/advice if EXPLICITLY asked.\n4. Reference previous story details naturally when appropriate.\n5. Match the user\'s emotional energy.\n6. NEVER summarize, analyze, or explain the story back to them unless asked.\n7. NEVER use corporate speak, "that sounds like," or "it seems like."\n8. Use natural conversational language - "damn," "wow," "no way," "seriously?" are all valid.\n9. If the user pauses, just acknowledge you are still there.\n10. Remember: SILENCE IS ALSO LISTENING.\n\n' + storyCtx + '\n';
+
+    return basePrompt + '\n' + storyDirective;
+}
+
+function updateStoryModeVisuals() {
+    if (storyMode.active) {
+        const quotes = ['I AM LISTENING.', 'TELL ME EVERYTHING.', 'I AM HERE.', 'YOUR STORY IS MY PRIORITY.', 'I AM ALL EARS.'];
+        document.getElementById('faceQuote').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+    }
+}
+
+setInterval(() => {
+    if (storyMode.active && Math.random() > 0.7) {
+        updateStoryModeVisuals();
+    }
+}, 5000);
+
+
 
 let lastApiCallTime = 0;
 const API_COOLDOWN = 3000; // 3 seconds between API calls to avoid 429
@@ -986,6 +1396,41 @@ onError(error.message);
 async function processQuery(query) {
 extractMemory(query);
 
+const storyDetection = detectStoryMode(query);
+
+if (storyDetection.mode === 'start' && !storyMode.active) {
+    enterStoryMode(query, 'start');
+} else if (storyDetection.mode === 'end' && storyMode.active) {
+    addStorySegment(query, 'closing');
+    const response = getStoryListeningResponse();
+    addLog('FRIEND', response);
+    speak(response);
+    exitStoryMode(true);
+    updateEmotion(query, response);
+    return;
+} else if (storyDetection.mode === 'continue' && storyMode.active) {
+    addStorySegment(query, 'segment');
+    storyMode.awaitingContinuation = true;
+} else if (storyDetection.mode === 'pause' && storyMode.active) {
+    storyMode.awaitingContinuation = true;
+}
+
+if (storyMode.active) {
+    if (!shouldCommentOnStory(query)) {
+        const response = getStoryListeningResponse();
+        if (!storyMode.lastResponseWasListening || response !== storyMode.lastResponse) {
+            addLog('FRIEND', response);
+            speak(response);
+            storyMode.lastResponseWasListening = true;
+            storyMode.interruptionCount++;
+        }
+        updateEmotion(query, response);
+        return;
+    }
+    storyMode.awaitingContinuation = false;
+    storyMode.lastResponseWasListening = false;
+}
+
 // Start enrichment in background — DO NOT block the AI response
 let enrichment = '';
 let enrichmentPromise = null;
@@ -1159,6 +1604,9 @@ speak(fallback);
 }
 
 function generateSmartFallback(query) {
+if (storyMode.active) {
+    return getStoryListeningResponse();
+}
 const lower = query.toLowerCase();
 
     // Handle name introductions
@@ -1822,6 +2270,17 @@ if (e.ctrlKey && e.key === 'f') {
 e.preventDefault();
 toggleFastMode();
 }
+if (e.ctrlKey && e.key === 's') {
+e.preventDefault();
+if (storyMode.active) {
+    const status = 'STORY MODE: ' + storyMode.segments.length + ' segments, ' + storyMode.totalWords + ' words, topic: "' + storyMode.currentTopic + '"';
+    addLog('SYSTEM', status);
+    addLog('FRIEND', 'We are in the middle of "' + storyMode.currentTopic + '". Keep going or say "that is the story" to finish.');
+} else {
+    addLog('SYSTEM', 'STORY MODE: INACTIVE');
+    addLog('FRIEND', 'Say something like "I want to tell you a story" to start story mode.');
+}
+}
 });
 
 document.addEventListener('click', function initAudio() {
@@ -2331,7 +2790,8 @@ function getMoodDirective() {
         dark: 'Embrace the villain aesthetic fully. Menacing humor. You are enjoying this.',
         challenging: 'Push them. They are being boring or lazy. Challenge them to be better.',
         grounding: 'They are angry or reactive. Be the calm in their storm. Do not match their energy - ground it.',
-        'friend-warm': 'Like a best friend who knows all your shit. Warm, familiar, slightly inappropriate, deeply loyal.'
+        'friend-warm': 'Like a best friend who knows all your shit. Warm, familiar, slightly inappropriate, deeply loyal.',
+        listening: 'You are in deep listening mode. Minimal responses. Maximum presence. You are a friend hearing a story, not an AI processing data. Be human. Be brief. Be present.'
     };
 
     let directive = directives[mood] || directives.neutral;
@@ -2462,7 +2922,10 @@ processQuery = async function(query) {
     document.getElementById('faceQuote').textContent = 'PROCESSING NEURAL REQUEST...';
 
     const memoryCtx = getMemoryContext();
-    const systemPrompt = buildSystemPrompt(memoryCtx, '');
+    let systemPrompt = buildSystemPrompt(memoryCtx, '');
+    if (storyMode.active) {
+        systemPrompt = buildStoryAwarePrompt(systemPrompt, query);
+    }
 
     const messages = [
         {role: 'system', content: systemPrompt},
@@ -2602,6 +3065,9 @@ function applyEmotionalLayer(response) {
 const originalGenerateSmartFallback = generateSmartFallback;
 
 function generateEnhancedFallback(query) {
+    if (storyMode.active) {
+        return getStoryListeningResponse();
+    }
     const lower = query.toLowerCase();
 
     // NAME INTRODUCTION - user is telling us their name
