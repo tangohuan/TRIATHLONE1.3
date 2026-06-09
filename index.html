@@ -4181,8 +4181,7 @@ if (!userProfile.initialized) {
 
 
 // ============================================================
-// PHASES 1-10: ENHANCEMENT ENGINE
-// Unified override system - all originals stored in _triOriginals
+// PHASES 1-10: ENHANCEMENT ENGINE + DEBUG PANEL
 // ============================================================
 
 
@@ -5648,6 +5647,176 @@ function startAffectionHeartbeat() {
 }
 
 startAffectionHeartbeat();
+
+
+
+// ============================================================
+// DEBUG PANEL - Phase Visualizer
+// Shows real-time status of all 10 enhancement phases
+// Press Ctrl+D to toggle
+// ============================================================
+
+var debugPanel = null;
+var debugInterval = null;
+
+function createDebugPanel() {
+    if (debugPanel) return;
+
+    debugPanel = document.createElement('div');
+    debugPanel.id = 'triDebugPanel';
+    debugPanel.style.cssText = 'position:fixed;bottom:10px;left:10px;width:280px;background:rgba(10,10,15,0.95);border:1px solid rgba(255,0,64,0.5);border-radius:4px;padding:10px;z-index:9999;font-family:"Share Tech Mono",monospace;font-size:0.65rem;color:var(--cyan);max-height:400px;overflow-y:auto;box-shadow:0 0 20px rgba(255,0,64,0.2);';
+
+    debugPanel.innerHTML = `
+        <div style="font-family:'Orbitron',sans-serif;color:var(--red);font-size:0.7rem;letter-spacing:2px;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px;">
+            ⚡ PHASE DEBUG // REALTIME
+        </div>
+        <div id="debugPhase1" style="margin:3px 0;">🔮 P1 Intent: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase2" style="margin:3px 0;">🔊 P2 Audio: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase3" style="margin:3px 0;">👁️ P3 Eyes: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase4" style="margin:3px 0;">☠️ P4 Threat: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase5" style="margin:3px 0;">👻 P5 Ghost: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase6" style="margin:3px 0;">⏱️ P6 Temporal: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase7" style="margin:3px 0;">⌨️ P7 Cadence: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase8" style="margin:3px 0;">🎭 P8 Theater: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase9" style="margin:3px 0;">🌍 P9 Weather: <span style="color:var(--red)">--</span></div>
+        <div id="debugPhase10" style="margin:3px 0;">💔 P10 Glitch: <span style="color:var(--red)">--</span></div>
+        <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:4px;font-size:0.55rem;color:var(--cyan-dim);">
+            Ctrl+D to toggle | Ctrl+H to hide
+        </div>
+    `;
+
+    document.body.appendChild(debugPanel);
+    startDebugUpdates();
+}
+
+function destroyDebugPanel() {
+    if (debugInterval) clearInterval(debugInterval);
+    if (debugPanel) {
+        debugPanel.remove();
+        debugPanel = null;
+    }
+}
+
+function toggleDebugPanel() {
+    if (debugPanel) {
+        destroyDebugPanel();
+    } else {
+        createDebugPanel();
+    }
+}
+
+function startDebugUpdates() {
+    debugInterval = setInterval(function() {
+        if (!debugPanel) return;
+
+        var now = Date.now();
+
+        // Phase 1: Predictive Intent
+        var p1 = document.getElementById('debugPhase1');
+        if (p1) {
+            var p1status = predictiveState.isWarmingUp ? 
+                'WARMING: ' + predictiveState.predictedMood.toUpperCase() + ' (' + predictiveState.pauseCount + ' pauses)' : 
+                'IDLE (last: ' + predictiveState.predictedMood + ')';
+            p1.innerHTML = '🔮 P1 Intent: <span style="color:' + (predictiveState.isWarmingUp ? '#00ff88' : 'var(--cyan-dim)') + '">' + p1status + '</span>';
+        }
+
+        // Phase 2: Ambient Audio
+        var p2 = document.getElementById('debugPhase2');
+        if (p2) {
+            var p2status = audioEnabled ? 
+                'ACTIVE (drone: ' + (ambientNodes.drone ? 'ON' : 'OFF') + ')' : 
+                'OFF (click to init)';
+            p2.innerHTML = '🔊 P2 Audio: <span style="color:' + (audioEnabled ? '#00ff88' : 'var(--red)') + '">' + p2status + '</span>';
+        }
+
+        // Phase 3: Micro Expressions
+        var p3 = document.getElementById('debugPhase3');
+        if (p3) {
+            var idleTime = Math.floor((now - microExpressionState.lastActivity) / 1000);
+            var p3status = microExpressionState.isIdle ? 
+                'IDLE (' + idleTime + 's) - blinking' : 
+                'ACTIVE (' + idleTime + 's since last input)';
+            p3.innerHTML = '👁️ P3 Eyes: <span style="color:' + (microExpressionState.isIdle ? 'var(--warm)' : '#00ff88') + '">' + p3status + '</span>';
+        }
+
+        // Phase 4: Threat Modulation
+        var p4 = document.getElementById('debugPhase4');
+        if (p4) {
+            var p4status = threatState.currentLabel !== threatState.baseLabel ? 
+                'MODULATED: ' + threatState.currentLabel + ' (base: ' + threatState.baseLabel + ')' : 
+                'BASE: ' + threatState.baseLabel;
+            p4.innerHTML = '☠️ P4 Threat: <span style="color:' + (threatState.currentLabel !== threatState.baseLabel ? 'var(--red)' : 'var(--cyan-dim)') + '">' + p4status + '</span>';
+        }
+
+        // Phase 5: Ghost Typing
+        var p5 = document.getElementById('debugPhase5');
+        if (p5) {
+            var p5status = ghostTyping.active ? 
+                'TYPING: ' + document.getElementById('typingArea').placeholder.substring(0, 20) + '...' : 
+                'IDLE';
+            p5.innerHTML = '👻 P5 Ghost: <span style="color:' + (ghostTyping.active ? 'var(--red)' : 'var(--cyan-dim)') + '">' + p5status + '</span>';
+        }
+
+        // Phase 6: Temporal
+        var p6 = document.getElementById('debugPhase6');
+        if (p6) {
+            var away = Math.floor((now - temporalState.lastSeen) / 1000);
+            var p6status = 'Last seen: ' + away + 's ago | Sessions: ' + temporalState.totalSessions;
+            p6.innerHTML = '⏱️ P6 Temporal: <span style="color:var(--cyan-dim)">' + p6status + '</span>';
+        }
+
+        // Phase 7: Cadence
+        var p7 = document.getElementById('debugPhase7');
+        if (p7) {
+            var p7status = cadenceTracker.keystrokes.length > 0 ? 
+                'TRACKING: ' + cadenceTracker.lastTypingSpeed + ' (' + Math.floor(cadenceTracker.avgInterval) + 'ms avg)' : 
+                'NO DATA';
+            p7.innerHTML = '⌨️ P7 Cadence: <span style="color:' + (cadenceTracker.keystrokes.length > 0 ? '#00ff88' : 'var(--cyan-dim)') + '">' + p7status + '</span>';
+        }
+
+        // Phase 8: Failure Theater
+        var p8 = document.getElementById('debugPhase8');
+        if (p8) {
+            var p8status = 'READY (watching for errors)';
+            p8.innerHTML = '🎭 P8 Theater: <span style="color:var(--cyan-dim)">' + p8status + '</span>';
+        }
+
+        // Phase 9: Weather
+        var p9 = document.getElementById('debugPhase9');
+        if (p9) {
+            var p9status = 'Phase ' + emotionalState.phases.current + ' | ' + 
+                Math.floor(relationshipWeather.currentDensity) + ' dots | ' + 
+                'rot: ' + relationshipWeather.currentRotation.toFixed(4);
+            p9.innerHTML = '🌍 P9 Weather: <span style="color:var(--warm)">' + p9status + '</span>';
+        }
+
+        // Phase 10: Glitch
+        var p10 = document.getElementById('debugPhase10');
+        if (p10) {
+            var timeSinceGlitch = Math.floor((now - glitchOfAffection.lastGlitchTime) / 1000);
+            var p10status = emotionalState.phases.current >= 5 ? 
+                'ARMED (last: ' + timeSinceGlitch + 's ago, mood: ' + emotionalState.mood + ')' : 
+                'DISABLED (need Phase 5)';
+            p10.innerHTML = '💔 P10 Glitch: <span style="color:' + (emotionalState.phases.current >= 5 ? 'var(--red)' : 'var(--cyan-dim)') + '">' + p10status + '</span>';
+        }
+
+    }, 200); // Update every 200ms for real-time feel
+}
+
+// Keyboard shortcut: Ctrl+D
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        toggleDebugPanel();
+    }
+});
+
+// Auto-show on first load with hint
+setTimeout(function() {
+    createDebugPanel();
+    addLog('SYSTEM', 'DEBUG PANEL ACTIVE // PRESS CTRL+D TO TOGGLE');
+    addLog('FRIEND', 'All 10 phases are running. The debug panel shows you what is happening under the hood. Press Ctrl+D to hide it.');
+}, 2000);
 
 
 
