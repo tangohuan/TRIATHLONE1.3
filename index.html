@@ -22,6 +22,8 @@ body{background:var(--bg);color:var(--cyan);font-family:'Share Tech Mono',monosp
 .top-stat-label{color:var(--cyan-dim);font-size:0.55rem}
 .top-stat-value{color:var(--cyan);font-weight:bold}
 .top-stat-value.online{color:#00ff88;text-shadow:0 0 8px #00ff88}
+.top-stat-value.listening{color:#ff0040;text-shadow:0 0 8px #ff0040;animation:pulseRed 1.5s infinite}
+@keyframes pulseRed{0%,100%{opacity:1}50%{opacity:0.5}}
 .threat-badge{display:flex;align-items:center;gap:10px;padding:6px 16px;border:1px solid var(--red);background:rgba(255,0,64,0.08)}
 .threat-badge-label{font-size:0.6rem;color:var(--red);letter-spacing:2px}
 .threat-badge-value{font-family:'Orbitron',sans-serif;font-size:0.9rem;color:var(--red);font-weight:700;letter-spacing:3px;text-shadow:0 0 10px var(--red)}
@@ -176,6 +178,7 @@ body{background:var(--bg);color:var(--cyan);font-family:'Share Tech Mono',monosp
 <div class="top-stat"><span class="top-stat-label">CORE TEMP</span><span class="top-stat-value">92.1°C</span></div>
 <div class="top-stat"><span class="top-stat-label">POWER LVL</span><span class="top-stat-value">100%</span></div>
 <div class="top-stat"><span class="top-stat-label">QUANTUM LINK</span><span class="top-stat-value">STABLE</span></div>
+<div class="top-stat" id="voiceStat" style="display:none"><span class="top-stat-label">VOICE LINK</span><span class="top-stat-value online" id="voiceStatValue">ACTIVE</span></div>
 </div>
 <div class="threat-badge">
 <span class="threat-badge-label">THREAT LEVEL</span>
@@ -1033,44 +1036,227 @@ if (currentModel) {
 document.getElementById('modelSelect').value = currentModel;
 }
 
+// ============================================================
+// CONTINUOUS VOICE MODE — Always Listening, Always Ready
+// ============================================================
+
+let continuousMode = {
+    active: false,
+    autoRestart: true,
+    silenceTimeout: null,
+    lastTranscript: '',
+    interimBuffer: '',
+    finalBuffer: '',
+    processingDelay: 1500,  // ms to wait after speech stops before processing
+    minSpeechLength: 3,     // minimum words to process
+    wakePhrases: ['hey triathlone', 'okay triathlone', 'triathlone', 'hey system', 'system'],
+    sleepPhrases: ['stop listening', 'go to sleep', 'sleep mode', 'quiet', 'shut up'],
+    isAsleep: false,
+    consecutiveErrors: 0,
+    maxConsecutiveErrors: 5,
+    restartDelay: 300,     // ms before restarting after end
+    permissionGranted: false
+};
+
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 recognition = new SpeechRecognition();
-recognition.continuous = false;
-recognition.interimResults = false;
+
+// CONTINUOUS MODE SETTINGS
+recognition.continuous = true;        // Keep listening forever
+recognition.interimResults = true;     // Show words as you speak them
 recognition.lang = 'en-US';
+recognition.maxAlternatives = 1;
+
 recognition.onstart = () => {
-isListening = true;
-document.getElementById('talkBtn').classList.add('listening');
-document.getElementById('talkBtn').textContent = 'LINK ACTIVE';
+    isListening = true;
+    continuousMode.consecutiveErrors = 0;
+    document.getElementById('talkBtn').classList.add('listening');
+    document.getElementById('talkBtn').textContent = 'LINK ACTIVE';
+    const voiceStat = document.getElementById('voiceStat');
+    const voiceStatValue = document.getElementById('voiceStatValue');
+    if (voiceStat) voiceStat.style.display = 'flex';
+    if (voiceStatValue) voiceStatValue.className = 'top-stat-value listening';
+    addLog('SYSTEM', 'NEURAL LINK ESTABLISHED // CONTINUOUS LISTENING');
 };
+
 recognition.onend = () => {
-isListening = false;
-document.getElementById('talkBtn').classList.remove('listening');
-document.getElementById('talkBtn').textContent = 'INITIALIZE LINK';
+    isListening = false;
+    document.getElementById('talkBtn').classList.remove('listening');
+    document.getElementById('talkBtn').textContent = 'INITIALIZE LINK';
+    const voiceStatValue = document.getElementById('voiceStatValue');
+    if (voiceStatValue) voiceStatValue.className = 'top-stat-value online';
+
+    // AUTO-RESTART: If continuous mode is active and not manually stopped, restart immediately
+    if (continuousMode.active && continuousMode.autoRestart && continuousMode.consecutiveErrors < continuousMode.maxConsecutiveErrors) {
+        setTimeout(() => {
+            if (continuousMode.active && !isListening) {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.log('Restart failed:', e);
+                    continuousMode.consecutiveErrors++;
+                }
+            }
+        }, continuousMode.restartDelay);
+    } else if (continuousMode.consecutiveErrors >= continuousMode.maxConsecutiveErrors) {
+        addLog('SYSTEM', 'VOICE LINK UNSTABLE // TOO MANY ERRORS // MANUAL RESTART REQUIRED');
+        continuousMode.active = false;
+        continuousMode.autoRestart = false;
+    }
 };
+
 recognition.onresult = (event) => {
-const transcript = event.results[0][0].transcript;
-addLog('OPERATOR', transcript);
-processQuery(transcript);
+    let interimTranscript = '';
+    let finalTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+        } else {
+            interimTranscript += transcript;
+        }
+    }
+
+    // Update interim buffer for visual feedback
+    continuousMode.interimBuffer = interimTranscript;
+
+    // Process final results
+    if (finalTranscript.trim()) {
+        continuousMode.finalBuffer += ' ' + finalTranscript.trim();
+        continuousMode.lastTranscript = continuousMode.finalBuffer.trim();
+
+        // Clear any pending silence timeout
+        if (continuousMode.silenceTimeout) {
+            clearTimeout(continuousMode.silenceTimeout);
+        }
+
+        // Set new silence timeout — process after user stops speaking
+        continuousMode.silenceTimeout = setTimeout(() => {
+            const fullTranscript = continuousMode.finalBuffer.trim();
+            const wordCount = fullTranscript.split(/\s+/).length;
+
+            // Check wake/sleep phrases
+            const lower = fullTranscript.toLowerCase();
+
+            if (continuousMode.sleepPhrases.some(p => lower.includes(p))) {
+                continuousMode.isAsleep = true;
+                addLog('SYSTEM', 'VOICE SLEEP MODE ACTIVATED // SAY "HEY TRIATHLONE" TO WAKE');
+                speak('Going to sleep. Say my name when you need me.');
+                continuousMode.finalBuffer = '';
+                return;
+            }
+
+            if (continuousMode.isAsleep) {
+                if (continuousMode.wakePhrases.some(p => lower.includes(p))) {
+                    continuousMode.isAsleep = false;
+                    addLog('SYSTEM', 'VOICE WAKE DETECTED // RESUMING ACTIVE LISTENING');
+                    speak('I am here. What do you need?');
+                }
+                continuousMode.finalBuffer = '';
+                return;
+            }
+
+            // Only process if enough words and not a wake phrase alone
+            if (wordCount >= continuousMode.minSpeechLength) {
+                // Remove wake phrase from beginning if present
+                let cleanTranscript = fullTranscript;
+                for (const wakePhrase of continuousMode.wakePhrases) {
+                    if (lower.startsWith(wakePhrase)) {
+                        cleanTranscript = fullTranscript.substring(wakePhrase.length).trim();
+                        break;
+                    }
+                }
+
+                if (cleanTranscript.length > 0) {
+                    addLog('OPERATOR', cleanTranscript);
+                    processQuery(cleanTranscript);
+                }
+            }
+
+            // Reset buffer after processing
+            continuousMode.finalBuffer = '';
+            continuousMode.interimBuffer = '';
+
+        }, continuousMode.processingDelay);
+    }
 };
+
 recognition.onerror = (event) => {
-console.error('Speech recognition error:', event.error);
+    console.error('Speech recognition error:', event.error);
+    continuousMode.consecutiveErrors++;
+
+    // Don't log every error to avoid spam, but track them
+    if (continuousMode.consecutiveErrors === 1) {
+        addLog('SYSTEM', 'VOICE LINK NOISE DETECTED // RECALIBRATING...');
+    }
+
+    // Auto-restart on error (except permission denied)
+    if (event.error !== 'not-allowed' && event.error !== 'service-not-allowed') {
+        if (continuousMode.active && continuousMode.autoRestart) {
+            setTimeout(() => {
+                if (!isListening) {
+                    try { recognition.start(); } catch(e) {}
+                }
+            }, 500);
+        }
+    } else {
+        addLog('SYSTEM', 'VOICE PERMISSION DENIED // CHECK MICROPHONE SETTINGS');
+        continuousMode.active = false;
+    }
+};
+
+recognition.onaudiostart = () => {
+    // Visual feedback that mic is actually capturing audio
+    document.getElementById('talkBtn').style.boxShadow = '0 0 30px var(--red)';
+};
+
+recognition.onaudioend = () => {
+    document.getElementById('talkBtn').style.boxShadow = '';
 };
 }
 
+function toggleContinuousMode() {
+    if (!recognition) {
+        addLog('SYSTEM', 'Neural link unavailable. Browser lacks required protocols.');
+        return;
+    }
+
+    if (continuousMode.active) {
+        // Stop continuous mode
+        continuousMode.active = false;
+        continuousMode.autoRestart = false;
+        try { recognition.stop(); } catch(e) {}
+        const voiceStat = document.getElementById('voiceStat');
+        if (voiceStat) voiceStat.style.display = 'none';
+        addLog('SYSTEM', 'CONTINUOUS VOICE MODE DEACTIVATED');
+        document.getElementById('talkBtn').textContent = 'INITIALIZE LINK';
+    } else {
+        // Start continuous mode
+        continuousMode.active = true;
+        continuousMode.autoRestart = true;
+        continuousMode.consecutiveErrors = 0;
+        continuousMode.isAsleep = false;
+
+        // Request permission and start
+        try {
+            recognition.start();
+            addLog('SYSTEM', 'CONTINUOUS VOICE MODE ACTIVATED // ALWAYS LISTENING');
+            addLog('SYSTEM', 'COMMANDS: "HEY TRIATHLONE" TO WAKE // "STOP LISTENING" TO SLEEP');
+            document.getElementById('talkBtn').textContent = 'LINK ACTIVE';
+        } catch (e) {
+            addLog('SYSTEM', 'VOICE INIT FAILED: ' + e.message);
+        }
+    }
+}
+
+// Override toggleListening to use continuous mode
 function toggleListening() {
-if (!recognition) {
-addLog('SYSTEM', 'Neural link unavailable. Browser lacks required protocols.');
-return;
+    toggleContinuousMode();
 }
-if (isListening) {
-recognition.stop();
-} else {
-if (synth.speaking) synth.cancel();
-recognition.start();
-}
-}
+
+// toggleListening is now handled by toggleContinuousMode() above
 
 function addLog(source, text) {
 const logs = document.getElementById('logsContent');
@@ -2260,7 +2446,7 @@ synth.getVoices();
 document.addEventListener('keydown', (e) => {
 if (e.code === 'Space' && e.target === document.body) {
 e.preventDefault();
-toggleListening();
+toggleContinuousMode();
 }
 if (e.ctrlKey && e.key === 'e') {
 e.preventDefault();
