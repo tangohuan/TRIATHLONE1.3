@@ -167,6 +167,15 @@ body{background:var(--bg);color:var(--cyan);font-family:'Share Tech Mono',monosp
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.184.0/examples/jsm/"
+  }
+}
+</script>
+<base target="_blank">
 </head>
 <body>
 <div class="top-bar">
@@ -185,7 +194,9 @@ body{background:var(--bg);color:var(--cyan);font-family:'Share Tech Mono',monosp
 <span class="threat-badge-label">THREAT LEVEL</span>
 <span class="threat-badge-value">☠ OMEGA</span>
 
-  <button onclick="toggleDebugPanel()" style="position:fixed;top:10px;right:10px;z-index:9999;padding:4px 10px;font-family:'Orbitron',sans-serif;font-size:0.55rem;color:#ff0040;background:rgba(10,10,15,0.9);border:1px solid rgba(255,0,64,0.5);border-radius:3px;cursor:pointer;letter-spacing:1px;">⚡ DEBUG</button>
+  <button onclick="toggleDebugPanel()" style="position:fixed;top:10px;right:10px;z-index:9999;padding:4px 10px;font-family:'Orbitron',sans-serif;font-size:0.55rem;color:#ff0040;background:rgba(10,10,15,0.9);border:1px solid rgba(255,0,64,0.5);border-radius:3px;cursor:pointer;letter-spacing:1px;">
+  <button id="audioInitBtn" onclick="initAmbientAudio(); this.style.display='none';" style="position:fixed;top:10px;right:80px;z-index:9999;padding:4px 12px;font-family:'Orbitron',sans-serif;font-size:0.55rem;color:#00f0ff;background:rgba(10,10,15,0.9);border:1px solid rgba(0,240,255,0.5);border-radius:3px;cursor:pointer;letter-spacing:1px;animation:pulseRed 2s infinite;">🔊 INIT AUDIO</button>
+⚡ DEBUG</button>
 </div>
 </div>
 
@@ -232,54 +243,7 @@ body{background:var(--bg);color:var(--cyan);font-family:'Share Tech Mono',monosp
 <polygon points="200,20 373,110 373,290 200,380 27,290 27,110" fill="none" stroke="rgba(255,0,64,0.25)" stroke-width="2"/>
 <polygon points="200,40 353,120 353,280 200,360 47,280 47,120" fill="none" stroke="rgba(255,0,64,0.15)" stroke-width="1"/>
 </svg>
-<svg class="villain-face" id="villainFace" viewBox="0 0 300 300">
-<defs>
-<linearGradient id="faceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-<stop offset="0%" style="stop-color:#1a0008;stop-opacity:1"/>
-<stop offset="50%" style="stop-color:#0d0004;stop-opacity:1"/>
-<stop offset="100%" style="stop-color:#000000;stop-opacity:1"/>
-</linearGradient>
-<filter id="glow">
-<feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-<feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-</filter>
-</defs>
-<path d="M150 20 L250 80 L250 180 L200 260 L150 280 L100 260 L50 180 L50 80 Z" fill="url(#faceGradient)" stroke="#ff0040" stroke-width="3" filter="url(#glow)"/>
-<path d="M100 60 L150 40 L200 60" fill="none" stroke="#ff0040" stroke-width="2" opacity="0.6"/>
-<path d="M120 80 L150 70 L180 80" fill="none" stroke="#ff0040" stroke-width="1.5" opacity="0.4"/>
-<g class="eye-left">
-<polygon points="85,110 115,100 115,130 85,140" fill="#000" stroke="#ff0040" stroke-width="2"/>
-<polygon points="90,115 110,108 110,125 90,132" fill="#ff0040" opacity="0.9">
-<animate attributeName="opacity" values="0.9;0.3;0.9" dur="3s" repeatCount="indefinite"/>
-</polygon>
-<circle cx="100" cy="120" r="15" fill="none" stroke="#ff0040" stroke-width="1" opacity="0.3">
-<animate attributeName="r" values="15;18;15" dur="2s" repeatCount="indefinite"/>
-</circle>
-</g>
-<g class="eye-right">
-<polygon points="185,100 215,110 215,140 185,130" fill="#000" stroke="#ff0040" stroke-width="2"/>
-<polygon points="190,108 210,115 210,132 190,125" fill="#ff0040" opacity="0.9">
-<animate attributeName="opacity" values="0.9;0.3;0.9" dur="3s" repeatCount="indefinite" begin="0.5s"/>
-</polygon>
-<circle cx="200" cy="120" r="15" fill="none" stroke="#ff0040" stroke-width="1" opacity="0.3">
-<animate attributeName="r" values="15;18;15" dur="2s" repeatCount="indefinite" begin="0.5s"/>
-</circle>
-</g>
-<path d="M150 130 L150 180" fill="none" stroke="#ff0040" stroke-width="2" opacity="0.5"/>
-<path d="M140 160 L150 180 L160 160" fill="none" stroke="#ff0040" stroke-width="1.5" opacity="0.4"/>
-<g class="mouth">
-<path d="M110 210 Q150 200 190 210 L190 230 Q150 220 110 230 Z" fill="#000" stroke="#ff0040" stroke-width="2"/>
-<line x1="125" y1="212" x2="125" y2="228" stroke="#ff0040" stroke-width="1" opacity="0.5"/>
-<line x1="140" y1="210" x2="140" y2="226" stroke="#ff0040" stroke-width="1" opacity="0.5"/>
-<line x1="155" y1="209" x2="155" y2="225" stroke="#ff0040" stroke-width="1" opacity="0.5"/>
-<line x1="170" y1="210" x2="170" y2="226" stroke="#ff0040" stroke-width="1" opacity="0.5"/>
-</g>
-<path d="M80 200 L50 180" fill="none" stroke="#ff0040" stroke-width="1" opacity="0.3"/>
-<path d="M220 200 L250 180" fill="none" stroke="#ff0040" stroke-width="1" opacity="0.3"/>
-<circle cx="150" cy="250" r="8" fill="none" stroke="#ff0040" stroke-width="1" opacity="0.4">
-<animate attributeName="opacity" values="0.4;0.8;0.4" dur="4s" repeatCount="indefinite"/>
-</circle>
-</svg>
+<canvas id="villainFace" class="villain-face" width="300" height="300" style="width:200px;height:200px;z-index:2;"></canvas>
 </div>
 <div class="face-quote" id="faceQuote">I REMEMBER EVERYTHING ABOUT YOU.</div>
 </div>
@@ -4345,6 +4309,7 @@ function initAmbientAudio() {
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         audioEnabled = true;
+        var btn = document.getElementById('audioInitBtn'); if (btn) btn.style.display = 'none';
 
         // 60Hz subsonic drone
         var droneOsc = audioCtx.createOscillator();
@@ -4483,11 +4448,20 @@ typingArea.addEventListener('input', function() {
 });
 
 // Hook into audio init
+
+// Auto-init audio on first interaction anywhere
 document.addEventListener('click', function initAmbientOnClick(e) {
-    if (!audioInitialized) {
+    if (!audioEnabled) {
         initAmbientAudio();
     }
 }, {once: true});
+
+document.addEventListener('keydown', function initAmbientOnKey(e) {
+    if (!audioEnabled) {
+        initAmbientAudio();
+    }
+}, {once: true});
+
 
 
 
@@ -5829,6 +5803,279 @@ setTimeout(function() {
 }, 3000);
 
 
+
+
+// ============================================================
+// THREE.JS 3D VILLAIN FACE — Replaces SVG with WebGL/WebGPU
+// ============================================================
+
+(async function initThreeFace() {
+    // Dynamic import of Three.js (avoids module scope conflicts with existing code)
+    const THREE = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js");
+
+    const canvas = document.getElementById('villainFace');
+    if (!canvas) return;
+
+    const renderer = new THREE.WebGLRenderer({ 
+        canvas: canvas, 
+        alpha: true, 
+        antialias: true 
+    });
+    renderer.setSize(300, 300);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.z = 3.2;
+
+    // === HEAD GEOMETRY ===
+    // Icosahedron with vertex deformation for a stylized face shape
+    const headGeo = new THREE.IcosahedronGeometry(1.15, 2);
+    const pos = headGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        // Flatten bottom (jaw), taper top (forehead), protrude front (nose area)
+        let scaleX = 1.0, scaleY = 1.0, scaleZ = 1.0;
+        if (y < -0.35) { scaleX = 0.85; scaleZ = 0.9; } // jaw taper
+        else if (y > 0.4) { scaleX = 0.75; scaleZ = 0.85; } // forehead
+        if (z > 0.5 && y > -0.2 && y < 0.3) { scaleZ = 1.15; } // nose bridge
+        pos.setXYZ(i, x * scaleX, y * scaleY, z * scaleZ);
+    }
+    headGeo.computeVertexNormals();
+
+    const headMat = new THREE.MeshStandardMaterial({
+        color: 0x1a0008,
+        emissive: 0x330010,
+        emissiveIntensity: 0.35,
+        roughness: 0.5,
+        metalness: 0.85,
+        flatShading: true
+    });
+    const head = new THREE.Mesh(headGeo, headMat);
+    scene.add(head);
+
+    // === EYES ===
+    const eyeGeo = new THREE.IcosahedronGeometry(0.14, 1);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0040 });
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(-0.38, 0.12, 0.92);
+    rightEye.position.set(0.38, 0.12, 0.92);
+    head.add(leftEye);
+    head.add(rightEye);
+
+    // Eye glow halos
+    const haloGeo = new THREE.RingGeometry(0.16, 0.28, 8);
+    const haloMat = new THREE.MeshBasicMaterial({ 
+        color: 0xff0040, 
+        transparent: true, 
+        opacity: 0.25, 
+        side: THREE.DoubleSide 
+    });
+    const leftHalo = new THREE.Mesh(haloGeo, haloMat);
+    const rightHalo = new THREE.Mesh(haloGeo, haloMat);
+    leftHalo.position.set(-0.38, 0.12, 0.94);
+    rightHalo.position.set(0.38, 0.12, 0.94);
+    leftHalo.lookAt(camera.position);
+    rightHalo.lookAt(camera.position);
+    head.add(leftHalo);
+    head.add(rightHalo);
+
+    // === MOUTH ===
+    const mouthGeo = new THREE.TorusGeometry(0.22, 0.04, 8, 12, Math.PI);
+    const mouthMat = new THREE.MeshBasicMaterial({ color: 0xff0040, transparent: true, opacity: 0.6 });
+    const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+    mouth.position.set(0, -0.35, 0.88);
+    mouth.rotation.x = Math.PI * 0.15;
+    head.add(mouth);
+
+    // === FACIAL MARKINGS (wireframe overlay) ===
+    const wireGeo = new THREE.IcosahedronGeometry(1.16, 2);
+    // Apply same deformation
+    const wPos = wireGeo.attributes.position;
+    for (let i = 0; i < wPos.count; i++) {
+        const x = wPos.getX(i), y = wPos.getY(i), z = wPos.getZ(i);
+        let scaleX = 1.0, scaleY = 1.0, scaleZ = 1.0;
+        if (y < -0.35) { scaleX = 0.85; scaleZ = 0.9; }
+        else if (y > 0.4) { scaleX = 0.75; scaleZ = 0.85; }
+        if (z > 0.5 && y > -0.2 && y < 0.3) { scaleZ = 1.15; }
+        wPos.setXYZ(i, x * scaleX, y * scaleY, z * scaleZ);
+    }
+    wireGeo.computeVertexNormals();
+    const wireMat = new THREE.MeshBasicMaterial({ 
+        color: 0xff0040, 
+        wireframe: true, 
+        transparent: true, 
+        opacity: 0.12 
+    });
+    const wireframe = new THREE.Mesh(wireGeo, wireMat);
+    head.add(wireframe);
+
+    // === LIGHTING ===
+    const ambient = new THREE.AmbientLight(0x110005, 0.4);
+    scene.add(ambient);
+
+    const keyLight = new THREE.PointLight(0xff0040, 2.5, 12);
+    keyLight.position.set(2, 2, 4);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.PointLight(0x660020, 1.2, 10);
+    fillLight.position.set(-2, 0, 3);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.PointLight(0x00f0ff, 0.8, 10);
+    rimLight.position.set(0, -2, -3);
+    scene.add(rimLight);
+
+    const topLight = new THREE.PointLight(0xff0040, 0.6, 8);
+    topLight.position.set(0, 3, 1);
+    scene.add(topLight);
+
+    // === ANIMATION STATE ===
+    let baseRotY = 0;
+    let targetRotX = 0, targetRotY = 0;
+    let currentRotX = 0, currentRotY = 0;
+    let blinkTimer = 0;
+    let isBlinking = false;
+    let scanTimer = 0;
+    let isScanning = false;
+    let scanDir = 1;
+
+    // === MOUSE TRACKING ===
+    let mouseX = 0, mouseY = 0;
+    document.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        mouseX = (e.clientX - centerX) / (window.innerWidth / 2);
+        mouseY = (e.clientY - centerY) / (window.innerHeight / 2);
+    }, { passive: true });
+
+    // === IDLE BEHAVIOR ===
+    function updateIdleBehavior(now) {
+        // Subtle breathing/rotation
+        baseRotY += 0.002;
+
+        // Mouse follow (subtle, like the face is watching)
+        targetRotY = mouseX * 0.25;
+        targetRotX = -mouseY * 0.15;
+
+        // Smooth interpolation
+        currentRotX += (targetRotX - currentRotX) * 0.05;
+        currentRotY += (targetRotY - currentRotY) * 0.05;
+
+        head.rotation.y = baseRotY + currentRotY;
+        head.rotation.x = currentRotX;
+
+        // Breathing scale
+        const breathe = 1 + Math.sin(now * 0.0015) * 0.015;
+        head.scale.set(breathe, breathe, breathe);
+    }
+
+    // === BLINKING ===
+    function updateBlinking(now) {
+        if (isBlinking) {
+            const progress = (now - blinkTimer) / 150;
+            if (progress >= 1) {
+                isBlinking = false;
+                leftEye.scale.y = 1;
+                rightEye.scale.y = 1;
+            } else {
+                const blinkShape = Math.sin(progress * Math.PI);
+                leftEye.scale.y = 1 - blinkShape * 0.9;
+                rightEye.scale.y = 1 - blinkShape * 0.9;
+            }
+        } else if (Math.random() < 0.003) {
+            isBlinking = true;
+            blinkTimer = now;
+        }
+    }
+
+    // === SCANNING (idle eye movement) ===
+    function updateScanning(now) {
+        if (isScanning) {
+            const progress = (now - scanTimer) / 800;
+            if (progress >= 1) {
+                isScanning = false;
+                leftEye.position.x = -0.38;
+                rightEye.position.x = 0.38;
+            } else {
+                const offset = Math.sin(progress * Math.PI) * 0.06 * scanDir;
+                leftEye.position.x = -0.38 + offset;
+                rightEye.position.x = 0.38 + offset;
+            }
+        } else if (Math.random() < 0.001) {
+            isScanning = true;
+            scanTimer = now;
+            scanDir = Math.random() > 0.5 ? 1 : -1;
+        }
+    }
+
+    // === CSS CLASS REACTIVITY ===
+    function updateFromCSSClasses(now) {
+        const faceEl = document.getElementById('villainFace');
+        if (!faceEl) return;
+
+        if (faceEl.classList.contains('speaking')) {
+            // Glitch jitter + intense glow
+            head.rotation.z = (Math.random() - 0.5) * 0.06;
+            headMat.emissiveIntensity = 0.6 + Math.random() * 0.4;
+            eyeMat.color.setHex(0xff0040);
+            haloMat.opacity = 0.5 + Math.random() * 0.3;
+            // Mouth animation
+            mouth.scale.y = 1 + Math.sin(now * 0.03) * 0.4;
+        } else if (faceEl.classList.contains('thinking')) {
+            // Cyan shift, slower pulse
+            headMat.emissive.setHex(0x001a33);
+            headMat.emissiveIntensity = 0.3 + Math.sin(now * 0.002) * 0.15;
+            eyeMat.color.setHex(0x00f0ff);
+            haloMat.color.setHex(0x00f0ff);
+            haloMat.opacity = 0.2 + Math.sin(now * 0.003) * 0.1;
+            head.rotation.z *= 0.9;
+            mouth.scale.y = 0.6;
+        } else {
+            // Normal state
+            headMat.emissive.setHex(0x330010);
+            headMat.emissiveIntensity = 0.35 + Math.sin(now * 0.001) * 0.05;
+            eyeMat.color.setHex(0xff0040);
+            haloMat.color.setHex(0xff0040);
+            haloMat.opacity = 0.25 + Math.sin(now * 0.002) * 0.08;
+            head.rotation.z *= 0.95;
+            mouth.scale.y = 1;
+        }
+    }
+
+    // === MAIN LOOP ===
+    function animate() {
+        requestAnimationFrame(animate);
+        const now = Date.now();
+
+        updateIdleBehavior(now);
+        updateBlinking(now);
+        updateScanning(now);
+        updateFromCSSClasses(now);
+
+        // Wireframe pulse
+        wireMat.opacity = 0.08 + Math.sin(now * 0.001) * 0.04;
+
+        // Halo billboard (always face camera)
+        leftHalo.lookAt(camera.position);
+        rightHalo.lookAt(camera.position);
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Handle visibility changes (pause when tab hidden)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // Pause heavy rendering
+        }
+    });
+
+    addLog('SYSTEM', '3D NEURAL INTERFACE INITIALIZED // THREE.JS R184 ACTIVE');
+})();
 </script>
 </body>
 </html>
