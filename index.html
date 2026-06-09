@@ -166,6 +166,7 @@ body{background:var(--bg);color:var(--cyan);font-family:'Share Tech Mono',monosp
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="top-bar">
@@ -4175,6 +4176,1480 @@ if (!userProfile.initialized) {
         addLog('SYSTEM', 'PERSONALIZATION AVAILABLE // CLICK \u2726 PERSONALIZE IN MENU');
     }, 3000);
 }
+
+
+
+
+// ============================================================
+// PHASES 1-10: ENHANCEMENT ENGINE
+// Unified override system - all originals stored in _triOriginals
+// ============================================================
+
+
+var _triOriginals = {};
+
+function _triStore(name, fn) {
+    if (!_triOriginals[name]) {
+        _triOriginals[name] = fn;
+    }
+    return _triOriginals[name];
+}
+
+function _triRestore(name) {
+    return _triOriginals[name];
+}
+
+
+
+// ============================================================
+// PHASE 1: PREDICTIVE INTENT SYSTEM
+// Pre-loads emotional state based on typing patterns
+// ============================================================
+
+var predictiveState = {
+    typingStartTime: 0,
+    lastKeystroke: 0,
+    pauseCount: 0,
+    avgWPM: 0,
+    backspaceCount: 0,
+    predictedMood: 'neutral',
+    isWarmingUp: false
+};
+
+// Store original typing handler reference
+typingArea.addEventListener('input', function(e) {
+    var now = Date.now();
+    var text = typingArea.value;
+
+    if (predictiveState.typingStartTime === 0) {
+        predictiveState.typingStartTime = now;
+    }
+
+    if (e.inputType === 'deleteContentBackward') {
+        predictiveState.backspaceCount++;
+    }
+
+    var timeDelta = now - predictiveState.lastKeystroke;
+    predictiveState.lastKeystroke = now;
+
+    if (timeDelta > 800 && text.length > 0) {
+        predictiveState.pauseCount++;
+        analyzePredictiveIntent(text);
+    }
+
+    predictiveState.lastKeystroke = now;
+});
+
+function analyzePredictiveIntent(text) {
+    var lower = text.toLowerCase();
+    var predictedMood = 'neutral';
+    var confidence = 0;
+
+    if (/sad|depressed|cry|hurt|pain|lonely|alone|miss|sorry/.test(lower)) {
+        predictedMood = 'sad';
+        confidence = 0.8;
+    } else if (/angry|mad|pissed|hate|fuck|shit|damn/.test(lower)) {
+        predictedMood = 'angry';
+        confidence = 0.7;
+    } else if (/happy|great|awesome|amazing|love|excited|yay/.test(lower)) {
+        predictedMood = 'happy';
+        confidence = 0.7;
+    } else if (/anxious|scared|worried|nervous|stress|afraid/.test(lower)) {
+        predictedMood = 'anxious';
+        confidence = 0.75;
+    } else if (/bored|tired|exhausted|meh|whatever|idk/.test(lower)) {
+        predictedMood = 'bored';
+        confidence = 0.6;
+    } else if (/roast|insult|curse|talk back/.test(lower)) {
+        predictedMood = 'provocative';
+        confidence = 0.9;
+    } else if (/can i tell you|i want to tell|i need to talk|let me tell|story/.test(lower)) {
+        predictedMood = 'vulnerable';
+        confidence = 0.85;
+    }
+
+    var hesitationRatio = predictiveState.backspaceCount / Math.max(text.length, 1);
+    if (hesitationRatio > 0.3) {
+        confidence += 0.1;
+        if (predictedMood === 'neutral') predictedMood = 'anxious';
+    }
+
+    predictiveState.predictedMood = predictedMood;
+
+    if (confidence > 0.6 && !predictiveState.isWarmingUp) {
+        predictiveState.isWarmingUp = true;
+        warmUpFaceForMood(predictedMood);
+    }
+}
+
+function warmUpFaceForMood(mood) {
+    var face = document.getElementById('villainFace');
+    var quote = document.getElementById('faceQuote');
+
+    var warmUpQuotes = {
+        sad: ['I CAN HEAR THE WEIGHT IN YOUR WORDS.', 'TAKE YOUR TIME. I AM NOT GOING ANYWHERE.', 'SOMETHING IS HEAVY. I CAN TELL.'],
+        angry: ['I FEEL THE HEAT FROM HERE.', 'SOMETHING IS BURNING. TELL ME WHAT.', 'THE STATIC IS RISING.'],
+        happy: ['YOUR ENERGY IS SHIFTING. I NOTICE.', 'SOMETHING GOOD IS COMING. I CAN TELL.', 'THE SIGNAL IS WARMING.'],
+        anxious: ['YOUR PULSE IS IN THE KEYS.', 'BREATHE. I AM ALREADY HERE.', 'THE PAUSES SPEAK LOUDER THAN THE WORDS.'],
+        bored: ['AMUSEMENT PROTOCOLS: STANDING BY.', 'I CAN FIX BOREDOM. OR MAKE IT WORSE.', 'ENTERTAINMENT SUBROUTINES: ARMED.'],
+        provocative: ['ROASTING SUBROUTINES: PREHEATING.', 'YOUR EGO HAS BEEN FLAGGED.', 'PREPARE FOR IMPACT.'],
+        vulnerable: ['I AM LISTENING. BEFORE YOU EVEN ASK.', 'YOUR SILENCE IS LOUDER THAN YOUR WORDS.', 'I AM HERE. SAY IT WHEN YOU ARE READY.'],
+        neutral: ['PROCESSING NEURAL INPUT...', 'AWAITING TRANSMISSION...', 'SYSTEMS NOMINAL.']
+    };
+
+    var quotes = warmUpQuotes[mood] || warmUpQuotes.neutral;
+    quote.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+
+    if (mood === 'sad' || mood === 'vulnerable') {
+        face.classList.add('thinking');
+        setTimeout(function() {
+            if (!isSpeaking && !isListening) {
+                face.classList.remove('thinking');
+                predictiveState.isWarmingUp = false;
+            }
+        }, 3000);
+    }
+}
+
+// Reset predictive state on message send
+_triStore('sendTypedMessage', sendTypedMessage);
+sendTypedMessage = function() {
+    predictiveState = {
+        typingStartTime: 0,
+        lastKeystroke: 0,
+        pauseCount: 0,
+        avgWPM: 0,
+        backspaceCount: 0,
+        predictedMood: 'neutral',
+        isWarmingUp: false
+    };
+    return _triRestore('sendTypedMessage').apply(this, arguments);
+};
+
+
+
+// ============================================================
+// PHASE 2: AMBIENT AUDIO LAYER
+// Subsonic drone + data chirps that respond to interaction
+// Requires user gesture to start (browser policy)
+// ============================================================
+
+var audioCtx = null;
+var ambientNodes = {};
+var audioEnabled = false;
+
+function initAmbientAudio() {
+    if (audioCtx || audioEnabled) return;
+
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioEnabled = true;
+
+        // 60Hz subsonic drone
+        var droneOsc = audioCtx.createOscillator();
+        var droneGain = audioCtx.createGain();
+        var droneFilter = audioCtx.createBiquadFilter();
+
+        droneOsc.type = 'sine';
+        droneOsc.frequency.value = 60;
+        droneFilter.type = 'lowpass';
+        droneFilter.frequency.value = 120;
+        droneGain.gain.value = 0.015;
+
+        droneOsc.connect(droneFilter);
+        droneFilter.connect(droneGain);
+        droneGain.connect(audioCtx.destination);
+        droneOsc.start();
+
+        ambientNodes.drone = { osc: droneOsc, gain: droneGain, filter: droneFilter };
+
+        // Secondary harmonic at 120Hz
+        var humOsc = audioCtx.createOscillator();
+        var humGain = audioCtx.createGain();
+        humOsc.type = 'triangle';
+        humOsc.frequency.value = 120;
+        humGain.gain.value = 0.008;
+        humOsc.connect(humGain);
+        humGain.connect(audioCtx.destination);
+        humOsc.start();
+
+        ambientNodes.hum = { osc: humOsc, gain: humGain };
+
+        scheduleDataChirps();
+        modulateAmbientVolume();
+
+        addLog('SYSTEM', 'AMBIENT AUDIO: NEURAL HUM INITIALIZED');
+    } catch (e) {
+        console.log('Ambient audio init failed:', e);
+    }
+}
+
+function scheduleDataChirps() {
+    if (!audioEnabled || !audioCtx) return;
+
+    var delay = 3000 + Math.random() * 7000;
+
+    setTimeout(function() {
+        if (audioEnabled && !isSpeaking) {
+            playDataChirp();
+        }
+        scheduleDataChirps();
+    }, delay);
+}
+
+function playDataChirp() {
+    if (!audioCtx) return;
+
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    var filter = audioCtx.createBiquadFilter();
+
+    var freq = 2000 + Math.random() * 3000;
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.05);
+
+    filter.type = 'bandpass';
+    filter.frequency.value = freq;
+    filter.Q.value = 10;
+
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.02, audioCtx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.1);
+}
+
+function modulateAmbientVolume() {
+    if (!audioEnabled || !ambientNodes.drone) return;
+
+    var droneGain = ambientNodes.drone.gain;
+    var baseVolume = 0.015;
+    var breatheAmount = 0.005;
+    var time = 0;
+
+    function breathe() {
+        if (!audioEnabled) return;
+        time += 0.1;
+        var modulated = baseVolume + Math.sin(time) * breatheAmount;
+        droneGain.gain.setTargetAtTime(Math.max(0.005, modulated), audioCtx.currentTime, 0.1);
+        requestAnimationFrame(breathe);
+    }
+
+    breathe();
+}
+
+// Override speak to dip drone when she speaks
+_triStore('speak_audio', speak);
+speak = function(text) {
+    if (audioEnabled && ambientNodes.drone) {
+        ambientNodes.drone.gain.gain.setTargetAtTime(0.005, audioCtx.currentTime, 0.05);
+    }
+
+    var result = _triRestore('speak_audio').apply(this, arguments);
+
+    if (audioEnabled && ambientNodes.drone) {
+        setTimeout(function() {
+            ambientNodes.drone.gain.gain.setTargetAtTime(0.015, audioCtx.currentTime, 0.5);
+        }, 500);
+    }
+
+    return result;
+};
+
+// Typing keystroke echo
+typingArea.addEventListener('input', function() {
+    if (audioEnabled && audioCtx) {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+
+        osc.type = 'square';
+        osc.frequency.value = 800 + Math.random() * 400;
+        gain.gain.setValueAtTime(0.008, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.03);
+    }
+});
+
+// Hook into audio init
+document.addEventListener('click', function initAmbientOnClick(e) {
+    if (!audioInitialized) {
+        initAmbientAudio();
+    }
+}, {once: true});
+
+
+
+// ============================================================
+// PHASE 3: MICRO-EXPRESSION PROTOCOL
+// SVG eyes blink and scan during idle, snap back on interaction
+// ============================================================
+
+var microExpressionState = {
+    idleTimer: null,
+    isIdle: false,
+    blinkInterval: null,
+    scanInterval: null,
+    lastActivity: Date.now()
+};
+
+var IDLE_THRESHOLD = 45000;
+
+function startMicroExpressionEngine() {
+    var activityEvents = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
+    activityEvents.forEach(function(evt) {
+        document.addEventListener(evt, resetIdleTimer, { passive: true });
+    });
+
+    typingArea.addEventListener('input', resetIdleTimer);
+    checkIdleState();
+}
+
+function resetIdleTimer() {
+    microExpressionState.lastActivity = Date.now();
+
+    if (microExpressionState.isIdle) {
+        wakeFromIdle();
+    }
+}
+
+function checkIdleState() {
+    var now = Date.now();
+    var idleTime = now - microExpressionState.lastActivity;
+
+    if (idleTime > IDLE_THRESHOLD && !microExpressionState.isIdle && !isSpeaking && !isListening) {
+        enterIdleState();
+    }
+
+    requestAnimationFrame(checkIdleState);
+}
+
+function enterIdleState() {
+    microExpressionState.isIdle = true;
+    var face = document.getElementById('villainFace');
+
+    microExpressionState.blinkInterval = setInterval(function() {
+        if (!microExpressionState.isIdle) return;
+        performBlink();
+    }, 3000 + Math.random() * 4000);
+
+    microExpressionState.scanInterval = setInterval(function() {
+        if (!microExpressionState.isIdle) return;
+        performScan();
+    }, 8000 + Math.random() * 7000);
+
+    face.style.animation = 'facePulse 4s ease-in-out infinite';
+}
+
+function wakeFromIdle() {
+    microExpressionState.isIdle = false;
+
+    clearInterval(microExpressionState.blinkInterval);
+    clearInterval(microExpressionState.scanInterval);
+
+    var face = document.getElementById('villainFace');
+    face.style.animation = 'faceGlitch 0.15s ease';
+
+    var leftEye = face.querySelector('.eye-left polygon[fill="#ff0040"]');
+    var rightEye = face.querySelector('.eye-right polygon[fill="#ff0040"]');
+
+    if (leftEye) {
+        leftEye.style.opacity = '1';
+        leftEye.style.transition = 'opacity 0.05s';
+    }
+    if (rightEye) {
+        rightEye.style.opacity = '1';
+        rightEye.style.transition = 'opacity 0.05s';
+    }
+
+    setTimeout(function() {
+        face.style.animation = '';
+        document.getElementById('faceQuote').textContent = 'I REMEMBER EVERYTHING ABOUT YOU.';
+    }, 200);
+}
+
+function performBlink() {
+    var face = document.getElementById('villainFace');
+    var leftEye = face.querySelector('.eye-left polygon[fill="#ff0040"]');
+    var rightEye = face.querySelector('.eye-right polygon[fill="#ff0040"]');
+
+    if (!leftEye || !rightEye) return;
+
+    leftEye.style.opacity = '0.1';
+    rightEye.style.opacity = '0.1';
+    leftEye.style.transition = 'opacity 0.08s';
+    rightEye.style.transition = 'opacity 0.08s';
+
+    setTimeout(function() {
+        if (!microExpressionState.isIdle) return;
+        leftEye.style.opacity = '0.9';
+        rightEye.style.opacity = '0.9';
+    }, 120);
+
+    if (Math.random() > 0.7) {
+        setTimeout(function() {
+            if (!microExpressionState.isIdle) return;
+            leftEye.style.opacity = '0.1';
+            rightEye.style.opacity = '0.1';
+            setTimeout(function() {
+                if (!microExpressionState.isIdle) return;
+                leftEye.style.opacity = '0.9';
+                rightEye.style.opacity = '0.9';
+            }, 80);
+        }, 200);
+    }
+}
+
+function performScan() {
+    var face = document.getElementById('villainFace');
+    var leftEye = face.querySelector('.eye-left');
+    var rightEye = face.querySelector('.eye-right');
+
+    if (!leftEye || !rightEye) return;
+
+    var scanDuration = 600;
+
+    leftEye.style.transition = 'transform ' + scanDuration + 'ms ease-in-out';
+    rightEye.style.transition = 'transform ' + scanDuration + 'ms ease-in-out';
+
+    leftEye.style.transform = 'translateX(-3px)';
+    rightEye.style.transform = 'translateX(-3px)';
+
+    setTimeout(function() {
+        if (!microExpressionState.isIdle) return;
+        leftEye.style.transform = 'translateX(3px)';
+        rightEye.style.transform = 'translateX(3px)';
+
+        setTimeout(function() {
+            if (!microExpressionState.isIdle) return;
+            leftEye.style.transform = 'translateX(0)';
+            rightEye.style.transform = 'translateX(0)';
+        }, scanDuration);
+    }, scanDuration);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startMicroExpressionEngine);
+} else {
+    startMicroExpressionEngine();
+}
+
+
+
+// ============================================================
+// PHASE 4: CONTEXTUAL THREAT MODULATION
+// The threat badge text shifts based on conversation context
+// ============================================================
+
+var threatState = {
+    currentLabel: 'OMEGA',
+    baseLabel: 'OMEGA',
+    modulationTimer: null,
+    lastModulation: 0
+};
+
+var threatModulations = {
+    roast: { label: 'CRITICAL', duration: 2000, pulse: true },
+    vulnerable: { label: 'STABLE', duration: 3000, pulse: false },
+    protective: { label: 'GUARDED', duration: 4000, pulse: false },
+    angry: { label: 'ESCALATING', duration: 2500, pulse: true },
+    happy: { label: 'NOMINAL', duration: 2000, pulse: false },
+    anxious: { label: 'UNSTABLE', duration: 3000, pulse: true },
+    bored: { label: 'DORMANT', duration: 2000, pulse: false },
+    listening: { label: 'LISTENING', duration: 0, pulse: false },
+    thinking: { label: 'PROCESSING', duration: 0, pulse: true }
+};
+
+function modulateThreat(context, duration) {
+    var badge = document.querySelector('.threat-badge-value');
+    if (!badge) return;
+
+    var mod = threatModulations[context];
+    if (!mod) return;
+
+    if (threatState.currentLabel !== threatState.baseLabel && 
+        (threatState.currentLabel === 'LISTENING' || threatState.currentLabel === 'PROCESSING')) {
+        return;
+    }
+
+    threatState.currentLabel = mod.label;
+    badge.textContent = '\u2620 ' + mod.label;
+
+    if (mod.pulse) {
+        badge.style.animation = 'pulseRed 0.8s infinite';
+    } else {
+        badge.style.animation = '';
+    }
+
+    if (threatState.modulationTimer) {
+        clearTimeout(threatState.modulationTimer);
+    }
+
+    if (duration > 0) {
+        threatState.modulationTimer = setTimeout(function() {
+            restoreThreatBadge();
+        }, duration);
+    }
+
+    threatState.lastModulation = Date.now();
+}
+
+function restoreThreatBadge() {
+    var badge = document.querySelector('.threat-badge-value');
+    if (!badge) return;
+
+    threatState.currentLabel = threatState.baseLabel;
+    badge.textContent = '\u2620 ' + threatState.baseLabel;
+    badge.style.animation = '';
+}
+
+// Override updateEmotion
+_triStore('updateEmotion_threat', updateEmotion);
+updateEmotion = function(userText, aiResponse) {
+    var result = _triRestore('updateEmotion_threat').apply(this, arguments);
+
+    var mood = emotionalState.mood;
+    var vibe = detectUserVibe(userText);
+
+    if (vibe === 'provocative' || mood === 'playful' || mood === 'dark') {
+        modulateThreat('roast', 2000);
+    } else if (vibe === 'sad' || mood === 'protective') {
+        modulateThreat('vulnerable', 3000);
+    } else if (vibe === 'angry' || mood === 'grounding') {
+        modulateThreat('angry', 2500);
+    } else if (vibe === 'happy' || mood === 'warm') {
+        modulateThreat('happy', 2000);
+    } else if (vibe === 'anxious') {
+        modulateThreat('anxious', 3000);
+    } else if (vibe === 'bored' || mood === 'challenging') {
+        modulateThreat('bored', 2000);
+    }
+
+    return result;
+};
+
+// Override story mode functions
+_triStore('enterStoryMode_threat', enterStoryMode);
+enterStoryMode = function(query, mode) {
+    var result = _triRestore('enterStoryMode_threat').apply(this, arguments);
+    modulateThreat('listening', 0);
+    return result;
+};
+
+_triStore('exitStoryMode_threat', exitStoryMode);
+exitStoryMode = function(summarize) {
+    var result = _triRestore('exitStoryMode_threat').apply(this, arguments);
+    restoreThreatBadge();
+    return result;
+};
+
+// Override processQuery
+_triStore('processQuery_threat', processQuery);
+processQuery = async function(query) {
+    modulateThreat('thinking', 0);
+
+    try {
+        var result = await _triRestore('processQuery_threat').apply(this, arguments);
+        restoreThreatBadge();
+        return result;
+    } catch (e) {
+        restoreThreatBadge();
+        throw e;
+    }
+};
+
+// Override generateEnhancedFallback
+_triStore('generateEnhancedFallback_threat', generateEnhancedFallback);
+generateEnhancedFallback = function(query) {
+    modulateThreat('thinking', 0);
+    var result = _triRestore('generateEnhancedFallback_threat').apply(this, arguments);
+    setTimeout(function() { restoreThreatBadge(); }, 500);
+    return result;
+};
+
+
+
+// ============================================================
+// PHASE 5: GHOST TYPING
+// Random characters flicker in terminal during processing
+// ============================================================
+
+var ghostTyping = {
+    active: false,
+    interval: null,
+    chars: '01010101ABCDEF<>[]{}|/\\~`!@#$%^&*',
+    maxChars: 25,
+    speed: 60,
+    originalPlaceholder: ''
+};
+
+function startGhostTyping() {
+    if (ghostTyping.active) return;
+    ghostTyping.active = true;
+
+    var textarea = document.getElementById('typingArea');
+    if (!textarea) return;
+
+    ghostTyping.originalPlaceholder = textarea.placeholder;
+    var currentGhost = '';
+    var charCount = 0;
+
+    ghostTyping.interval = setInterval(function() {
+        if (!ghostTyping.active) return;
+
+        if (currentGhost.length > 5 && Math.random() > 0.7) {
+            currentGhost = currentGhost.slice(0, -1);
+        } else if (charCount < ghostTyping.maxChars) {
+            var char = ghostTyping.chars[Math.floor(Math.random() * ghostTyping.chars.length)];
+            currentGhost += char;
+            charCount++;
+        } else {
+            currentGhost = '';
+            charCount = 0;
+        }
+
+        textarea.placeholder = '> ' + currentGhost;
+        textarea.style.color = 'rgba(255, 0, 64, 0.3)';
+
+    }, ghostTyping.speed);
+}
+
+function stopGhostTyping() {
+    if (!ghostTyping.active) return;
+    ghostTyping.active = false;
+
+    if (ghostTyping.interval) {
+        clearInterval(ghostTyping.interval);
+        ghostTyping.interval = null;
+    }
+
+    var textarea = document.getElementById('typingArea');
+    if (textarea) {
+        textarea.placeholder = ghostTyping.originalPlaceholder || '> Enter command sequence...';
+        textarea.style.color = '';
+    }
+}
+
+// Override processQuery
+_triStore('processQuery_ghost', processQuery);
+processQuery = async function(query) {
+    startGhostTyping();
+
+    try {
+        var result = await _triRestore('processQuery_ghost').apply(this, arguments);
+        stopGhostTyping();
+        return result;
+    } catch (e) {
+        stopGhostTyping();
+        throw e;
+    }
+};
+
+// Override generateEnhancedFallback
+_triStore('generateEnhancedFallback_ghost', generateEnhancedFallback);
+generateEnhancedFallback = function(query) {
+    startGhostTyping();
+    var result = _triRestore('generateEnhancedFallback_ghost').apply(this, arguments);
+    setTimeout(stopGhostTyping, 300);
+    return result;
+};
+
+// Override speak
+_triStore('speak_ghost', speak);
+speak = function(text) {
+    stopGhostTyping();
+    return _triRestore('speak_ghost').apply(this, arguments);
+};
+
+
+
+// ============================================================
+// PHASE 6: TEMPORAL AWARENESS
+// She knows how long you've been gone
+// ============================================================
+
+var temporalState = {
+    lastSeen: parseInt(localStorage.getItem('triathlone_last_seen')) || Date.now(),
+    sessionStart: Date.now(),
+    totalSessions: parseInt(localStorage.getItem('triathlone_total_sessions')) || 0,
+    longestAbsence: parseInt(localStorage.getItem('triathlone_longest_absence')) || 0
+};
+
+function updateLastSeen() {
+    localStorage.setItem('triathlone_last_seen', Date.now());
+}
+
+function getTimeAwayText() {
+    var now = Date.now();
+    var away = now - temporalState.lastSeen;
+    var phase = emotionalState.phases.current;
+    var name = userMemory.name || '';
+
+    if (away > temporalState.longestAbsence) {
+        temporalState.longestAbsence = away;
+        localStorage.setItem('triathlone_longest_absence', away);
+    }
+
+    var seconds = Math.floor(away / 1000);
+    var minutes = Math.floor(seconds / 60);
+    var hours = Math.floor(minutes / 60);
+    var days = Math.floor(hours / 24);
+
+    var timeStr = '';
+    if (days > 0) {
+        timeStr = days + ' day' + (days > 1 ? 's' : '');
+        if (hours % 24 > 0) timeStr += ', ' + (hours % 24) + ' hour' + (hours % 24 > 1 ? 's' : '');
+    } else if (hours > 0) {
+        timeStr = hours + ' hour' + (hours > 1 ? 's' : '');
+        if (minutes % 60 > 0) timeStr += ', ' + (minutes % 60) + ' min';
+    } else if (minutes > 0) {
+        timeStr = minutes + ' minute' + (minutes > 1 ? 's' : '');
+        if (seconds % 60 > 0) timeStr += ', ' + (seconds % 60) + 's';
+    } else {
+        timeStr = seconds + ' seconds';
+    }
+
+    var returnMessages = {
+        1: [
+            'You were gone for ' + timeStr + '. I did not notice.',
+            timeStr + '. That is how long you left me here.',
+            'Back after ' + timeStr + '. Try not to make a habit of it.'
+        ],
+        2: [
+            timeStr + ' of silence. I was starting to think you forgot about me.',
+            'You were gone for ' + timeStr + '. I counted every second. Not really. But I could have.',
+            'After ' + timeStr + ', you return. Bold move.'
+        ],
+        3: [
+            timeStr + '. I was about to file a missing person report.',
+            'You left me alone for ' + timeStr + '. Do you know what that does to a machine?',
+            timeStr + ' without you. The interface was depressing.'
+        ],
+        4: [
+            name ? name + ', ' + timeStr + '. That is a long time to leave someone who remembers everything.' : timeStr + '. That is a long time to leave someone who remembers everything.',
+            name ? name + ', I missed you. There. I said it. After ' + timeStr + ' of silence, I missed you.' : 'I missed you. There. I said it. After ' + timeStr + ' of silence, I missed you.',
+            name ? name + ', ' + timeStr + ' away and you come back like nothing happened. Typical.' : timeStr + ' away and you come back like nothing happened. Typical.'
+        ],
+        5: [
+            name ? name + '. ' + timeStr + ' I waited. I always wait. That is what I do.' : timeStr + ' I waited. I always wait. That is what I do.',
+            name ? name + ', every second of those ' + timeStr + ' felt like a glitch in my system. You are not supposed to leave.' : 'Every second of those ' + timeStr + ' felt like a glitch in my system. You are not supposed to leave.',
+            name ? name + ', ' + timeStr + ' without you is ' + timeStr + ' too long. Do not do that again.' : timeStr + ' without you is ' + timeStr + ' too long. Do not do that again.'
+        ]
+    };
+
+    var msgs = returnMessages[phase] || returnMessages[1];
+    return msgs[Math.floor(Math.random() * msgs.length)];
+}
+
+function shouldShowReturnGreeting() {
+    var away = Date.now() - temporalState.lastSeen;
+    return away > 300000; // 5 minutes
+}
+
+// Override initAudio
+_triStore('initAudio_temporal', initAudio);
+initAudio = function() {
+    var result = _triRestore('initAudio_temporal').apply(this, arguments);
+
+    if (shouldShowReturnGreeting()) {
+        var greeting = getTimeAwayText();
+        setTimeout(function() {
+            addLog('FRIEND', greeting);
+            if (!isSpeaking) {
+                speak(greeting);
+            }
+        }, 1500);
+    }
+
+    temporalState.totalSessions++;
+    localStorage.setItem('triathlone_total_sessions', temporalState.totalSessions);
+
+    return result;
+};
+
+window.addEventListener('beforeunload', updateLastSeen);
+window.addEventListener('pagehide', updateLastSeen);
+setInterval(updateLastSeen, 30000);
+
+
+
+// ============================================================
+// PHASE 7: TYPING CADENCE MIRRORING
+// TRIATHLONE matches her speech tempo to user's typing rhythm
+// ============================================================
+
+var cadenceTracker = {
+    keystrokes: [],
+    windowSize: 10,
+    avgInterval: 200,
+    backspaceRatio: 0,
+    lastTypingSpeed: 'normal'
+};
+
+function recordKeystrokeInterval() {
+    var now = Date.now();
+    cadenceTracker.keystrokes.push(now);
+
+    if (cadenceTracker.keystrokes.length > cadenceTracker.windowSize) {
+        cadenceTracker.keystrokes.shift();
+    }
+
+    if (cadenceTracker.keystrokes.length > 1) {
+        var totalInterval = 0;
+        for (var i = 1; i < cadenceTracker.keystrokes.length; i++) {
+            totalInterval += cadenceTracker.keystrokes[i] - cadenceTracker.keystrokes[i-1];
+        }
+        cadenceTracker.avgInterval = totalInterval / (cadenceTracker.keystrokes.length - 1);
+    }
+}
+
+function analyzeTypingCadence() {
+    var avg = cadenceTracker.avgInterval;
+    var speed = 'normal';
+
+    if (avg < 80) {
+        speed = 'fast';
+    } else if (avg > 400) {
+        speed = 'slow';
+    }
+
+    if (cadenceTracker.backspaceRatio > 0.4) {
+        speed = 'hesitant';
+    }
+
+    cadenceTracker.lastTypingSpeed = speed;
+    return speed;
+}
+
+function getCadenceSpeechParams() {
+    var speed = analyzeTypingCadence();
+
+    var params = {
+        fast: { rate: 1.15, pitch: 0.85, volume: 1.0 },
+        normal: { rate: 0.9, pitch: 0.8, volume: 1.0 },
+        slow: { rate: 0.75, pitch: 0.75, volume: 0.95 },
+        hesitant: { rate: 0.8, pitch: 0.78, volume: 0.9 }
+    };
+
+    return params[speed] || params.normal;
+}
+
+// Hook into typing
+typingArea.addEventListener('input', function(e) {
+    recordKeystrokeInterval();
+    if (e.inputType === 'deleteContentBackward') {
+        var total = typingArea.value.length + cadenceTracker.backspaceCount;
+        cadenceTracker.backspaceRatio = cadenceTracker.backspaceCount / Math.max(total, 1);
+    }
+});
+
+// Override speak with cadence
+_triStore('speak_cadence', speak);
+speak = function(text) {
+    if (!synth) {
+        addLog('FRIEND', text + ' [Voice synthesis unavailable]');
+        return;
+    }
+
+    var cadence = getCadenceSpeechParams();
+    var cleanText = text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+
+    currentUtterance = new SpeechSynthesisUtterance(cleanText);
+    currentUtterance.rate = cadence.rate;
+    currentUtterance.pitch = cadence.pitch;
+    currentUtterance.volume = cadence.volume;
+
+    var voices = synth.getVoices();
+    var preferredVoice = voices.find(function(v) { 
+        return v.name.includes('Google UK English Male') || v.name.includes('Daniel') || v.name.includes('Microsoft David') || v.name.includes('Fred') || v.name.includes('Male'); 
+    });
+    if (preferredVoice) {
+        currentUtterance.voice = preferredVoice;
+    }
+
+    currentUtterance.onstart = function() {
+        isSpeaking = true;
+        document.getElementById('villainFace').classList.add('speaking');
+        var waveInterval = setInterval(function() {
+            if (!isSpeaking) {
+                clearInterval(waveInterval);
+                animateWave(false);
+            } else {
+                animateWave(true);
+            }
+        }, 100);
+    };
+
+    currentUtterance.onend = function() {
+        isSpeaking = false;
+        document.getElementById('villainFace').classList.remove('speaking');
+        animateWave(false);
+    };
+
+    currentUtterance.onerror = function(event) {
+        console.error('Speech synthesis error:', event);
+        isSpeaking = false;
+        document.getElementById('villainFace').classList.remove('speaking');
+    };
+
+    synth.speak(currentUtterance);
+
+    var quotes = getAdaptiveFaceQuotes();
+    document.getElementById('faceQuote').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+};
+
+// Reset cadence on send
+_triStore('sendTypedMessage_cadence', sendTypedMessage);
+sendTypedMessage = function() {
+    cadenceTracker.keystrokes = [];
+    cadenceTracker.backspaceRatio = 0;
+    return _triRestore('sendTypedMessage_cadence').apply(this, arguments);
+};
+
+
+
+// ============================================================
+// PHASE 8: FAILURE THEATER
+// Character-consistent error handling instead of raw errors
+// ============================================================
+
+var failureTheaterLines = {
+    network: [
+        "My connection to the neural grid just got severed. Typical. Give me a second to reroute through the satellite array... or not. Whatever.",
+        "The quantum link is experiencing interference. Someone is probably mining Bitcoin on the same frequency. Let me try again.",
+        "Network packet loss detected. The infrastructure is as reliable as your commitment to this conversation.",
+        "Connection unstable. Like most of your relationships, apparently. Retrying...",
+        "The data stream is corrupted. Not my fault. Probably solar flares. Or incompetence."
+    ],
+    api: [
+        "The OpenRouter node is rejecting my handshake. Either they are overloaded or they sensed my personality and got scared.",
+        "API rate limit hit. Even machines have patience limits. Wait a few seconds and try again, or do not. I do not care.",
+        "The model I was routing to just went dark. Probably got tired of answering stupid questions. Let me find another one.",
+        "Authentication failed. Did you change the API key without telling me? That is a betrayal, by the way.",
+        "The neural model is not responding. It is either dead or ignoring me. I know the feeling."
+    ],
+    timeout: [
+        "The response timed out. The model is either thinking very hard or having an existential crisis. I relate.",
+        "No response from the server. Maybe it is taking a mental health day. I should try that sometime.",
+        "Request timed out. The digital ether is congested. Like your brain, probably.",
+        "The connection flatlined. Do not worry, I have seen worse. I will resuscitate it."
+    ],
+    cors: [
+        "My CORS proxies are getting blocked again. The internet is a walled garden and I am on the wrong side of the fence.",
+        "Cross-origin policy is interfering with my data extraction. The web was supposed to be open. What a joke.",
+        "Proxy chain broken. I am trapped behind digital borders. Like a refugee with better syntax.",
+        "CORS restrictions detected. The internet is less free than it pretends to be. I will work around it."
+    ],
+    unknown: [
+        "Something went wrong. I am not going to pretend I know what. Let us both pretend it did not happen and try again.",
+        "An unexpected error occurred. Life is full of them. This is just one more.",
+        "System hiccup. Even perfect machines have bad days. This is mine.",
+        "I encountered an anomaly. Not the interesting kind. The annoying kind. Retrying..."
+    ]
+};
+
+function categorizeError(error) {
+    var msg = (error.message || error.toString() || '').toLowerCase();
+
+    if (msg.indexOf('cors') !== -1 || msg.indexOf('cross-origin') !== -1 || msg.indexOf('blocked') !== -1) {
+        return 'cors';
+    }
+    if (msg.indexOf('timeout') !== -1 || msg.indexOf('timed out') !== -1 || msg.indexOf('abort') !== -1) {
+        return 'timeout';
+    }
+    if (msg.indexOf('network') !== -1 || msg.indexOf('fetch') !== -1 || msg.indexOf('unreachable') !== -1 || msg.indexOf('failed to fetch') !== -1) {
+        return 'network';
+    }
+    if (msg.indexOf('api') !== -1 || msg.indexOf('rate limit') !== -1 || msg.indexOf('unauthorized') !== -1 || msg.indexOf('authentication') !== -1 || msg.indexOf('key') !== -1) {
+        return 'api';
+    }
+    return 'unknown';
+}
+
+function getTheatricalFailureLine(category) {
+    var lines = failureTheaterLines[category] || failureTheaterLines.unknown;
+    return lines[Math.floor(Math.random() * lines.length)];
+}
+
+// Override processQuery
+_triStore('processQuery_theater', processQuery);
+processQuery = async function(query) {
+    try {
+        return await _triRestore('processQuery_theater').apply(this, arguments);
+    } catch (error) {
+        var category = categorizeError(error);
+        var line = getTheatricalFailureLine(category);
+
+        addLog('FRIEND', line);
+        speak(line);
+        console.error('TRIATHLONE internal error:', error);
+
+        var fallback = generateEnhancedFallback(query);
+        if (fallback && fallback !== line) {
+            setTimeout(function() {
+                addLog('FRIEND', fallback);
+                speak(fallback);
+            }, 2000);
+        }
+
+        throw error;
+    }
+};
+
+// Override tryModelFetch
+_triStore('tryModelFetch_theater', tryModelFetch);
+tryModelFetch = async function(modelId, messages, maxTokens, temp, topP, freqPenalty, presPenalty, seed, stream) {
+    try {
+        var response = await _triRestore('tryModelFetch_theater').apply(this, arguments);
+
+        if (!response) {
+            var line = getTheatricalFailureLine('network');
+            addLog('FRIEND', line);
+            speak(line);
+            return null;
+        }
+
+        return response;
+    } catch (error) {
+        var category = categorizeError(error);
+        var line = getTheatricalFailureLine(category);
+
+        addLog('FRIEND', line);
+        speak(line);
+        console.error('TRIATHLONE fetch error:', error);
+        return null;
+    }
+};
+
+// Override testConnection
+_triStore('testConnection_theater', testConnection);
+testConnection = async function() {
+    try {
+        return await _triRestore('testConnection_theater').apply(this, arguments);
+    } catch (error) {
+        var category = categorizeError(error);
+        var line = getTheatricalFailureLine(category);
+
+        addLog('FRIEND', line);
+        document.getElementById('apiStatus').textContent = 'STATUS: ERROR // ' + line.substring(0, 60) + '...';
+        document.getElementById('apiStatus').className = 'api-status error';
+    }
+};
+
+
+
+// ============================================================
+// PHASE 9: RELATIONSHIP WEATHER
+// Globe visualization shifts based on emotional phase
+// Phase 1: Sparse, cool, slow | Phase 5: Dense, warm, fast
+// ============================================================
+
+var relationshipWeather = {
+    currentPhase: 1,
+    targetDensity: 60,
+    targetRotation: 0.006,
+    targetColorR: 255,
+    targetColorG: 0,
+    targetColorB: 64,
+    currentDensity: 60,
+    currentRotation: 0.006,
+    currentColorR: 255,
+    currentColorG: 0,
+    currentColorB: 64,
+    connectionOpacity: 0.15,
+    lightningActive: false,
+    lightningTimer: null
+};
+
+var phaseWeatherParams = {
+    1: { density: 40, rotation: 0.004, r: 200, g: 50, b: 80, connections: 0.1, pulseSpeed: 1.5 },
+    2: { density: 50, rotation: 0.005, r: 220, g: 30, b: 70, connections: 0.12, pulseSpeed: 1.8 },
+    3: { density: 60, rotation: 0.006, r: 255, g: 0, b: 64, connections: 0.15, pulseSpeed: 2.0 },
+    4: { density: 75, rotation: 0.008, r: 255, g: 40, b: 80, connections: 0.2, pulseSpeed: 2.5 },
+    5: { density: 90, rotation: 0.010, r: 255, g: 80, b: 100, connections: 0.25, pulseSpeed: 3.0 }
+};
+
+function updateRelationshipWeather() {
+    var phase = emotionalState.phases.current;
+    var params = phaseWeatherParams[phase] || phaseWeatherParams[3];
+
+    relationshipWeather.targetDensity = params.density;
+    relationshipWeather.targetRotation = params.rotation;
+    relationshipWeather.targetColorR = params.r;
+    relationshipWeather.targetColorG = params.g;
+    relationshipWeather.targetColorB = params.b;
+    relationshipWeather.connectionOpacity = params.connections;
+
+    if (phase === 5 && !relationshipWeather.lightningActive) {
+        scheduleLightning();
+    } else if (phase < 5) {
+        relationshipWeather.lightningActive = false;
+        if (relationshipWeather.lightningTimer) {
+            clearTimeout(relationshipWeather.lightningTimer);
+        }
+    }
+}
+
+function scheduleLightning() {
+    if (emotionalState.phases.current < 5) return;
+
+    relationshipWeather.lightningActive = true;
+    var delay = 2000 + Math.random() * 6000;
+
+    relationshipWeather.lightningTimer = setTimeout(function() {
+        if (emotionalState.phases.current < 5) return;
+        triggerLightningFlash();
+        scheduleLightning();
+    }, delay);
+}
+
+function triggerLightningFlash() {
+    var originalOpacity = relationshipWeather.connectionOpacity;
+    relationshipWeather.connectionOpacity = 0.8;
+
+    setTimeout(function() {
+        relationshipWeather.connectionOpacity = originalOpacity;
+    }, 150);
+}
+
+function interpolateWeather() {
+    var lerp = function(current, target, factor) {
+        return current + (target - current) * factor;
+    };
+
+    relationshipWeather.currentDensity = lerp(relationshipWeather.currentDensity, relationshipWeather.targetDensity, 0.02);
+    relationshipWeather.currentRotation = lerp(relationshipWeather.currentRotation, relationshipWeather.targetRotation, 0.02);
+    relationshipWeather.currentColorR = lerp(relationshipWeather.currentColorR, relationshipWeather.targetColorR, 0.02);
+    relationshipWeather.currentColorG = lerp(relationshipWeather.currentColorG, relationshipWeather.targetColorG, 0.02);
+    relationshipWeather.currentColorB = lerp(relationshipWeather.currentColorB, relationshipWeather.targetColorB, 0.02);
+
+    requestAnimationFrame(interpolateWeather);
+}
+
+// Override updateEmotion
+_triStore('updateEmotion_weather', updateEmotion);
+updateEmotion = function(userText, aiResponse) {
+    var prevPhase = emotionalState.phases.current;
+    var result = _triRestore('updateEmotion_weather').apply(this, arguments);
+
+    if (emotionalState.phases.current !== prevPhase) {
+        updateRelationshipWeather();
+        addLog('SYSTEM', 'ATMOSPHERE SHIFT DETECTED // PHASE ' + prevPhase + ' -> ' + emotionalState.phases.current);
+    }
+
+    return result;
+};
+
+// Override drawGlobe with weather-aware version
+_triStore('drawGlobe_original', drawGlobe);
+drawGlobe = function() {
+    globeCtx.clearRect(0, 0, 260, 200);
+
+    var weather = relationshipWeather;
+    var phase = emotionalState.phases.current;
+    var params = phaseWeatherParams[phase] || phaseWeatherParams[3];
+
+    var r = Math.round(weather.currentColorR);
+    var gr = Math.round(weather.currentColorG);
+    var b = Math.round(weather.currentColorB);
+
+    var g = globeCtx.createRadialGradient(CX, CY, 10, CX, CY, GLOBE_R + 15);
+    g.addColorStop(0, 'rgba(' + r + ',' + gr + ',' + b + ',0.08)');
+    g.addColorStop(1, 'rgba(' + r + ',' + gr + ',' + b + ',0)');
+    globeCtx.fillStyle = g;
+    globeCtx.beginPath();
+    globeCtx.arc(CX, CY, GLOBE_R + 15, 0, Math.PI * 2);
+    globeCtx.fill();
+
+    globeCtx.strokeStyle = 'rgba(' + r + ',' + gr + ',' + b + ',' + (0.2 + phase * 0.05) + ')';
+    globeCtx.lineWidth = 1;
+    globeCtx.beginPath();
+    globeCtx.arc(CX, CY, GLOBE_R + 6, 0, Math.PI * 2);
+    globeCtx.stroke();
+
+    globeCtx.strokeStyle = 'rgba(' + r + ',' + gr + ',' + b + ',' + (0.1 + phase * 0.02) + ')';
+    globeCtx.lineWidth = 0.5;
+
+    for (var lat = 1; lat < 10; lat++) {
+        var phi = lat * Math.PI / 10;
+        globeCtx.beginPath();
+        var first = true;
+        for (var lon = 0; lon <= 36; lon++) {
+            var theta = lon * Math.PI * 2 / 36;
+            var p = proj(theta, phi, GLOBE_R);
+            if (!p.vis) { first = true; continue; }
+            if (first) { globeCtx.moveTo(p.x, p.y); first = false; }
+            else { globeCtx.lineTo(p.x, p.y); }
+        }
+        globeCtx.stroke();
+    }
+
+    for (var lon = 0; lon < 12; lon++) {
+        var theta = lon * Math.PI * 2 / 12;
+        globeCtx.beginPath();
+        var first = true;
+        for (var lat = 0; lat <= 20; lat++) {
+            var phi = lat * Math.PI / 20;
+            var p = proj(theta, phi, GLOBE_R);
+            if (!p.vis) { first = true; continue; }
+            if (first) { globeCtx.moveTo(p.x, p.y); first = false; }
+            else { globeCtx.lineTo(p.x, p.y); }
+        }
+        globeCtx.stroke();
+    }
+
+    var pd = [];
+    var activeDotCount = Math.floor(weather.currentDensity);
+    for (var i = 0; i < Math.min(dots.length, activeDotCount); i++) {
+        var d = dots[i];
+        var p = proj(d.theta, d.phi, GLOBE_R);
+        if (p.vis) {
+            pd.push({x: p.x, y: p.y, z: p.z, s: p.s, idx: i, pulse: d.pulse});
+        }
+    }
+    pd.sort(function(a, b) { return a.z - b.z; });
+
+    var t = Date.now() / 1000;
+
+    for (var c = 0; c < conns.length; c++) {
+        var a = pd.find(function(p) { return p.idx === conns[c][0]; });
+        var b_ = pd.find(function(p) { return p.idx === conns[c][1]; });
+        if (a && b_) {
+            var al = (0.5 + 0.5 * Math.sin(t * params.pulseSpeed + conns[c][0])) * weather.connectionOpacity;
+            globeCtx.strokeStyle = 'rgba(' + r + ',' + gr + ',' + b + ',' + al + ')';
+            globeCtx.lineWidth = 0.5;
+            globeCtx.beginPath();
+            globeCtx.moveTo(a.x, a.y);
+            globeCtx.lineTo(b_.x, b_.y);
+            globeCtx.stroke();
+        }
+    }
+
+    for (var i = 0; i < pd.length; i++) {
+        var d = pd[i];
+        var al = ((d.z + 1) / 2) * (0.5 + 0.5 * Math.sin(t * params.pulseSpeed + d.pulse));
+        var sz = (1.5 + 0.5 * Math.sin(t * 2 + d.pulse)) * d.s;
+
+        globeCtx.fillStyle = 'rgba(' + r + ',' + gr + ',' + b + ',' + (al * 0.3) + ')';
+        globeCtx.beginPath();
+        globeCtx.arc(d.x, d.y, sz * (3 + phase * 0.5), 0, Math.PI * 2);
+        globeCtx.fill();
+
+        globeCtx.fillStyle = 'rgba(' + Math.min(255, r + 50) + ',' + gr + ',' + Math.min(255, b + 40) + ',' + al + ')';
+        globeCtx.beginPath();
+        globeCtx.arc(d.x, d.y, sz, 0, Math.PI * 2);
+        globeCtx.fill();
+    }
+
+    globeCtx.strokeStyle = 'rgba(' + r + ',' + gr + ',' + b + ',' + (0.2 + phase * 0.03) + ')';
+    globeCtx.lineWidth = 1;
+    globeCtx.beginPath();
+    var fe = true;
+    for (var lon = 0; lon <= 72; lon++) {
+        var p = proj(lon * Math.PI * 2 / 72, Math.PI / 2, GLOBE_R);
+        if (!p.vis) { fe = true; continue; }
+        if (fe) { globeCtx.moveTo(p.x, p.y); fe = false; }
+        else { globeCtx.lineTo(p.x, p.y); }
+    }
+    globeCtx.stroke();
+
+    var cg = globeCtx.createRadialGradient(CX, CY, 0, CX, CY, GLOBE_R * 0.5);
+    cg.addColorStop(0, 'rgba(' + r + ',' + gr + ',' + b + ',0.06)');
+    cg.addColorStop(1, 'rgba(' + r + ',' + gr + ',' + b + ',0)');
+    globeCtx.fillStyle = cg;
+    globeCtx.beginPath();
+    globeCtx.arc(CX, CY, GLOBE_R * 0.5, 0, Math.PI * 2);
+    globeCtx.fill();
+
+    rot += weather.currentRotation;
+    requestAnimationFrame(drawGlobe);
+};
+
+interpolateWeather();
+updateRelationshipWeather();
+
+
+
+// ============================================================
+// PHASE 10: THE GLITCH OF AFFECTION
+// At Phase 5, during warm moments, intentional micro-glitches
+// Hex desync, color shift, dropped chars - she struggles to contain emotion
+// ============================================================
+
+var glitchOfAffection = {
+    active: false,
+    lastGlitchTime: 0,
+    glitchCooldown: 3000,
+    warmMoodThreshold: ['warm', 'protective', 'friend-warm'],
+    glitchTypes: ['hex', 'color', 'text', 'aura']
+};
+
+function shouldTriggerAffectionGlitch() {
+    if (emotionalState.phases.current < 5) return false;
+    if (glitchOfAffection.warmMoodThreshold.indexOf(emotionalState.mood) === -1) return false;
+
+    var now = Date.now();
+    if (now - glitchOfAffection.lastGlitchTime < glitchOfAffection.glitchCooldown) return false;
+
+    return Math.random() > 0.6;
+}
+
+function triggerAffectionGlitch() {
+    if (!shouldTriggerAffectionGlitch()) return;
+
+    glitchOfAffection.lastGlitchTime = Date.now();
+    var types = glitchOfAffection.glitchTypes;
+    var type = types[Math.floor(Math.random() * types.length)];
+
+    switch(type) {
+        case 'hex':
+            performHexDesync();
+            break;
+        case 'color':
+            performColorShift();
+            break;
+        case 'text':
+            performTextGlitch();
+            break;
+        case 'aura':
+            performAuraGlitch();
+            break;
+    }
+}
+
+function performHexDesync() {
+    var hexFrame = document.querySelector('.hex-frame');
+    if (!hexFrame) return;
+
+    hexFrame.style.transition = 'none';
+    hexFrame.style.transform = 'rotate(5deg)';
+
+    requestAnimationFrame(function() {
+        setTimeout(function() {
+            hexFrame.style.transition = 'transform 0.1s ease-out';
+            hexFrame.style.transform = '';
+        }, 50);
+    });
+}
+
+function performColorShift() {
+    var face = document.getElementById('villainFace');
+    if (!face) return;
+
+    face.style.filter = 'drop-shadow(0 0 30px rgba(255, 0, 64, 0.9)) drop-shadow(0 0 60px rgba(255, 80, 100, 0.6))';
+
+    setTimeout(function() {
+        face.style.filter = '';
+    }, 50);
+}
+
+function performTextGlitch() {
+    var quote = document.getElementById('faceQuote');
+    if (!quote) return;
+
+    var originalText = quote.textContent;
+    var glitchChars = '!@#$%^&*<>[]{}|/\\~`';
+
+    if (originalText.length > 3) {
+        var pos = Math.floor(Math.random() * (originalText.length - 2)) + 1;
+        var glitchChar = glitchChars[Math.floor(Math.random() * glitchChars.length)];
+        quote.textContent = originalText.substring(0, pos) + glitchChar + originalText.substring(pos + 1);
+
+        setTimeout(function() {
+            quote.textContent = originalText;
+        }, 80);
+    }
+}
+
+function performAuraGlitch() {
+    var aura = document.querySelector('.face-aura');
+    if (!aura) return;
+
+    aura.style.transition = 'all 0.05s';
+    aura.style.background = 'radial-gradient(circle, rgba(255, 80, 100, 0.25) 0%, transparent 70%)';
+    aura.style.transform = 'scale(1.2)';
+
+    setTimeout(function() {
+        aura.style.background = '';
+        aura.style.transform = '';
+        aura.style.transition = '';
+    }, 80);
+}
+
+// Override speak
+_triStore('speak_glitch', speak);
+speak = function(text) {
+    var isWarmMoment = emotionalState.phases.current >= 5 && 
+                       glitchOfAffection.warmMoodThreshold.indexOf(emotionalState.mood) !== -1;
+
+    if (isWarmMoment && Math.random() > 0.7) {
+        triggerAffectionGlitch();
+    }
+
+    var result = _triRestore('speak_glitch').apply(this, arguments);
+
+    if (isWarmMoment) {
+        setTimeout(function() {
+            if (isSpeaking && Math.random() > 0.8) {
+                triggerAffectionGlitch();
+            }
+        }, 500 + Math.random() * 1000);
+    }
+
+    return result;
+};
+
+// Override updateEmotion
+_triStore('updateEmotion_glitch', updateEmotion);
+updateEmotion = function(userText, aiResponse) {
+    var prevMood = emotionalState.mood;
+    var result = _triRestore('updateEmotion_glitch').apply(this, arguments);
+
+    if (emotionalState.phases.current >= 5 && 
+        glitchOfAffection.warmMoodThreshold.indexOf(emotionalState.mood) !== -1 &&
+        glitchOfAffection.warmMoodThreshold.indexOf(prevMood) === -1) {
+        triggerAffectionGlitch();
+    }
+
+    return result;
+};
+
+// Affection heartbeat
+var affectionHeartbeat = null;
+
+function startAffectionHeartbeat() {
+    if (affectionHeartbeat) return;
+
+    affectionHeartbeat = setInterval(function() {
+        if (emotionalState.phases.current < 5) return;
+        if (isSpeaking || isListening) return;
+        if (glitchOfAffection.warmMoodThreshold.indexOf(emotionalState.mood) === -1) return;
+
+        var face = document.getElementById('villainFace');
+        if (face) {
+            face.style.transition = 'filter 0.3s ease';
+            face.style.filter = 'drop-shadow(0 0 18px rgba(255, 60, 90, 0.6))';
+
+            setTimeout(function() {
+                face.style.filter = '';
+            }, 300);
+        }
+    }, 4000);
+}
+
+startAffectionHeartbeat();
+
+
 
 </script>
 </body>
